@@ -3,7 +3,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { BirthInfo } from '@/lib/ziwei/types';
 import { SHICHEN } from '@/lib/ziwei/constants';
-import { useTheme } from '@/components/ThemeProvider';
 import { PROVINCES } from '@/lib/ziwei/cities';
 import { formToBirthInfo, calcTrueSolarBranch } from '@/lib/ziwei/share';
 
@@ -40,8 +39,7 @@ function isValidDate(y: number, m: number, d: number): boolean {
 }
 
 export default function BirthForm({ onSubmit, loading, initialData, onFormSave, hideSubmit }: BirthFormProps) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const isDark = false;
 
   const [form, setForm] = useState<BirthFormState>({
     name: initialData?.name ?? '',

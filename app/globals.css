@@ -12,15 +12,12 @@
   --bg-0: #FAFAF9;
   --bg-1: #F4F3EF;
   --bg-2: #ECEAE4;
-  --bg-inv: #0D0D0B;
 
   /* 文字层级 */
   --tx-0: #0D0D0B;
   --tx-1: #1A1A18;
   --tx-2: #4A4A45;
   --tx-3: #8A8A82;
-  --tx-inv: #F0EDE8;
-  --tx-inv2: rgba(240,237,232,0.65);
 
   /* 唯一强调色：墨金 */
   --ac:     #B8922A;
@@ -56,38 +53,6 @@
   --r-lg:  16px;
   --r-xl:  24px;
   --r-pill:999px;
-}
-
-/* ─── 暗色模式 Token 覆盖 ──────────────────────────────── */
-[data-theme="dark"] {
-  --bg-0: #020810;
-  --bg-1: #0a1020;
-  --bg-2: #141e30;
-  --bg-inv: #f0ede8;
-
-  --tx-0: #e8eef6;
-  --tx-1: #dce4f0;
-  --tx-2: #9db0d0;
-  --tx-3: #6a7a96;
-  --tx-inv: #0d0d0b;
-  --tx-inv2: rgba(13,13,11,0.65);
-
-  --ac:     #d4a843;
-  --ac-dim: #e8c060;
-  --ac-bg:  rgba(212,168,67,0.10);
-  --ac-bdr: rgba(212,168,67,0.25);
-
-  --bdr:      rgba(255,255,255,0.07);
-  --bdr-med:  rgba(255,255,255,0.12);
-  --bdr-heavy:rgba(255,255,255,0.20);
-
-  --sh-xs: 0 1px 2px rgba(0,0,0,0.3);
-  --sh-sm: 0 2px 8px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
-  --sh-md: 0 4px 20px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.35);
-  --sh-lg: 0 12px 40px rgba(0,0,0,0.6), 0 4px 12px rgba(0,0,0,0.4);
-
-  --bg-card: rgba(255,255,255,0.04);
-  --bg-page: #020810;
 }
 
 /* ─── 全局基础 ───────────────────────────────────────────── */
@@ -146,12 +111,6 @@ body {
   background: var(--bg-1);
   border: 1px solid var(--bdr);
   border-radius: var(--r-md);
-}
-
-/* 深色区块 */
-.section-dark {
-  background: var(--bg-inv);
-  color: var(--tx-inv);
 }
 
 /* 按钮 */
@@ -308,9 +267,6 @@ body {
   color: transparent;
   display: inline-block;
 }
-.grad-text-dark {
-  background-image: linear-gradient(160deg, #c8993a 0%, #f0d070 40%, #c8993a 70%, #f0c755 100%);
-}
 .grad-text-light {
   background-image: linear-gradient(160deg, #6a4206 0%, #9a6a10 40%, #6a4206 70%, #885010 100%);
 }
@@ -430,7 +386,3 @@ body {
   @page { margin: 1.2cm; size: A4 landscape; }
 }
 
-/* 原生下拉框（年 / 月 / 日 / 时辰 / 省市）：深色主题下选项列表用实色底。
-   select 本身是半透明底 + 浅色字，Windows 上原生下拉列表是白底，浅灰字配白底看不清（#14） */
-[data-theme="dark"] select { color-scheme: dark; }
-[data-theme="dark"] select option { background-color: var(--bg-2); color: var(--tx-1); }

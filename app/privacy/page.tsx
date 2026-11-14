@@ -54,7 +54,7 @@ export default function PrivacyPage() {
       </ul>
 
       <h2 style={{ fontSize: 18, marginTop: 32, marginBottom: 12 }}>6. Cookie 与本地存储</h2>
-      <p>本站使用 cookie / localStorage 用于：保存你的暗黑/亮色主题偏好、最近的命盘历史、会员登录状态。你可在浏览器设置中关闭，但部分功能可能受影响。</p>
+      <p>本站使用 cookie / localStorage 用于保存最近的命盘历史和会员登录状态。你可在浏览器设置中关闭，但部分功能可能受影响。</p>
 
       <h2 style={{ fontSize: 18, marginTop: 32, marginBottom: 12 }}>7. 未成年人</h2>
       <p>本平台命理内容面向 18 岁以上成年用户。未成年人请在监护人同意下使用，并不得将解读用于重大人生决策。</p>

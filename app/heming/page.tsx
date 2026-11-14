@@ -5,7 +5,6 @@ import BirthForm, { type BirthFormState } from '@/components/BirthForm';
 import { formToBirthInfo } from '@/lib/ziwei/share';
 import { generateChart as buildChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart } from '@/lib/ziwei/types';
-import { useTheme } from '@/components/ThemeProvider';
 
 // ─── AiContent 渲染器（与 InsightPanel 一致）────────────────
 function AiContent({ text, streaming }: { text: string; streaming?: boolean }) {
@@ -49,8 +48,7 @@ function AiContent({ text, streaming }: { text: string; streaming?: boolean }) {
 
 export default function HemingPage() {
   const router = useRouter();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const isDark = false;
 
   // ─── 双方命盘状态 ─────────────────────────────────────────
   const [chartA, setChartA] = useState<ZiweiChart | null>(null);

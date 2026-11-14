@@ -11,7 +11,7 @@ export default function HomePage() {
         <span className="select-none font-serif" style={{ fontSize: 'clamp(240px, 42vw, 520px)', lineHeight: 1, color: 'var(--t-gold)', opacity: 0.05 }}>☯</span>
       </div>
       <section className="relative z-10 flex flex-col items-center">
-        <h1 className="grad-text grad-text-dark mb-5 font-bold leading-none" style={{ fontSize: 'clamp(56px, 10vw, 124px)', letterSpacing: '0.07em' }}>
+        <h1 className="grad-text grad-text-light mb-5 font-bold leading-none" style={{ fontSize: 'clamp(56px, 10vw, 124px)', letterSpacing: '0.07em' }}>
           星耀紫微
         </h1>
         <p className="mb-8 text-sm tracking-[0.16em] sm:text-base" style={{ color: 'var(--t-text)' }}>
