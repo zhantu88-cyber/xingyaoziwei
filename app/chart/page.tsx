@@ -23,6 +23,10 @@ export default function ChartPage() {
   const [view, setView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
 
+  const readingKey = chart
+    ? `${chart.birthInfo.year}-${String(chart.birthInfo.month).padStart(2, '0')}-${String(chart.birthInfo.day).padStart(2, '0')}-${chart.birthInfo.hour}-${chart.birthInfo.gender}`
+    : null;
+
   // ── 未起盘：展示出生信息表单 ──
   if (!chart) {
     return (
@@ -65,7 +69,7 @@ export default function ChartPage() {
         }}
       >
         <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
-        <InsightPanel chart={chart} selectedPalace={selectedPalace} />
+        <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} />
       </div>
     </main>
   );
