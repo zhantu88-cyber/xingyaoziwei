@@ -29,17 +29,18 @@ type DimensionField = (typeof DIMENSIONS)[number][2];
 type Reading = { k: string } & Record<DimensionField, string | null>;
 
 const PALACE_DIMENSION: Record<string, DimensionField> = {
-  '命宫': 'text_personality',
-  '夫妻宫': 'text_love',
-  '官禄宫': 'text_career',
-  '财帛宫': 'text_wealth',
-  '疾厄宫': 'text_health',
-  '田宅宫': 'text_family',
-  '子女宫': 'text_children',
-  '迁移宫': 'text_move',
-  '交友宫': 'text_friends',
-  '福德宫': 'text_spirit',
-  '父母宫': 'text_parents',
+  // iztro 的 Palace.name 通常省略“宫”字，如“夫妻”“官禄”；同时兼容完整显示名。
+  '命': 'text_personality', '命宫': 'text_personality',
+  '夫妻': 'text_love', '夫妻宫': 'text_love',
+  '官禄': 'text_career', '官禄宫': 'text_career', '事业': 'text_career', '事业宫': 'text_career',
+  '财帛': 'text_wealth', '财帛宫': 'text_wealth',
+  '疾厄': 'text_health', '疾厄宫': 'text_health',
+  '田宅': 'text_family', '田宅宫': 'text_family',
+  '子女': 'text_children', '子女宫': 'text_children',
+  '迁移': 'text_move', '迁移宫': 'text_move',
+  '交友': 'text_friends', '交友宫': 'text_friends', '仆役': 'text_friends', '仆役宫': 'text_friends',
+  '福德': 'text_spirit', '福德宫': 'text_spirit',
+  '父母': 'text_parents', '父母宫': 'text_parents',
 };
 
 export default function InsightPanel({ readingKey, selectedPalace }: InsightPanelProps) {
@@ -48,9 +49,11 @@ export default function InsightPanel({ readingKey, selectedPalace }: InsightPane
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const selectedPalaceName = selectedPalace?.name;
+
   useEffect(() => {
-    setActiveTab(selectedPalace ? PALACE_DIMENSION[selectedPalace.name] ?? 'text_overview' : 'text_overview');
-  }, [selectedPalace]);
+    setActiveTab(selectedPalaceName ? PALACE_DIMENSION[selectedPalaceName] ?? 'text_overview' : 'text_overview');
+  }, [selectedPalaceName]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -86,6 +89,12 @@ export default function InsightPanel({ readingKey, selectedPalace }: InsightPane
 
   const activeDimension = DIMENSIONS.find(([, , field]) => field === activeTab);
   const activeText = reading?.[activeTab];
+  const overviewText = reading?.text_overview;
+  const displayedTab = activeTab !== 'text_overview' && !activeText && overviewText
+    ? 'text_overview'
+    : activeTab;
+  const displayedDimension = DIMENSIONS.find(([, , field]) => field === displayedTab);
+  const displayedText = reading?.[displayedTab];
 
   return (
     <aside className="card-glass min-w-0 rounded-xl px-4 py-4">
@@ -107,11 +116,11 @@ export default function InsightPanel({ readingKey, selectedPalace }: InsightPane
               key={key}
               type="button"
               onClick={() => setActiveTab(field)}
-              aria-pressed={activeTab === field}
+              aria-pressed={displayedTab === field}
               className="shrink-0 rounded-md px-2.5 py-1.5 text-xs transition-colors"
               style={{
-                color: activeTab === field ? 'var(--ac)' : 'var(--tx-3)',
-                background: activeTab === field ? 'rgba(180, 120, 20, 0.1)' : 'transparent',
+                color: displayedTab === field ? 'var(--ac)' : 'var(--tx-3)',
+                background: displayedTab === field ? 'rgba(180, 120, 20, 0.1)' : 'transparent',
               }}
             >
               {label}
@@ -138,10 +147,10 @@ export default function InsightPanel({ readingKey, selectedPalace }: InsightPane
               暂时无法读取命理档案，请稍后重试。
             </p>
           </div>
-        ) : activeText ? (
+        ) : displayedText ? (
           <article className="reading-markdown text-sm leading-7" style={{ color: 'var(--tx-1)' }}>
             <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--ac)' }}>
-              {activeDimension?.[1]}
+              {displayedDimension?.[1]}
             </h2>
             <ReactMarkdown
               components={{
@@ -157,7 +166,7 @@ export default function InsightPanel({ readingKey, selectedPalace }: InsightPane
                 hr: () => <hr className="my-4" style={{ borderColor: 'var(--bdr)' }} />,
               }}
             >
-              {activeText}
+              {displayedText}
             </ReactMarkdown>
           </article>
         ) : (
