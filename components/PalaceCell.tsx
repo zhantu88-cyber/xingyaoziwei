@@ -20,10 +20,10 @@ interface PalaceCellProps {
 }
 
 const SIHUA_STYLES: Record<string, string> = {
-  '禄': 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-  '权': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-  '科': 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
-  '忌': 'text-red-400 bg-red-500/10 border-red-500/30',
+  '禄': 'text-emerald-800 bg-emerald-900/10 border-emerald-800/30',
+  '权': 'text-blue-800 bg-blue-900/10 border-blue-800/30',
+  '科': 'text-yellow-900 bg-yellow-900/10 border-yellow-900/30',
+  '忌': 'text-red-800 bg-red-900/10 border-red-800/30',
 };
 
 const SiHuaBadge = ({
@@ -40,7 +40,7 @@ const SiHuaBadge = ({
   return (
     <span
       className={clsx(
-        'inline-flex items-center text-[8px] px-1 rounded-full border leading-none py-px font-bold ml-1 flex-shrink-0',
+        'inline-flex items-center text-[9px] px-1 rounded-full border leading-none py-0.5 font-bold ml-1 flex-shrink-0',
         SIHUA_STYLES[siHua],
         overlay && 'border-dashed opacity-80',
         onClick && 'cursor-pointer hover:opacity-100',
@@ -71,9 +71,9 @@ export default function PalaceCell({
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.35, delay, ease: 'easeOut' }}
       onClick={onClick}
-      className="relative flex flex-col p-1.5 cursor-pointer transition-all duration-200 h-full"
+      className="relative flex flex-col p-2 cursor-pointer transition-all duration-200 h-full"
       style={{
-        minHeight: '90px',
+        minHeight: '108px',
         background: isSelected
           ? 'rgba(37,99,235,0.18)'
           : isCurrentDaXian
@@ -95,39 +95,36 @@ export default function PalaceCell({
       {/* 大限年龄 */}
       {daXianAge && (
         <div className={clsx(
-          'absolute top-1 right-1 text-[9px] font-mono tabular-nums',
-          isCurrentDaXian ? 'text-purple-400' : ''
+          'absolute top-1 right-1 text-[10px] font-mono tabular-nums',
+          isCurrentDaXian ? 'text-purple-800' : 'text-[#555]'
         )}
-          style={!isCurrentDaXian ? { color: 'var(--t-faint)', opacity: 0.75 } : undefined}
         >
           {daXianAge[0]}–{daXianAge[1]}
         </div>
       )}
 
       {/* 宫名行 */}
-      <div className="flex items-center gap-1 mb-0.5 pr-8">
-        <span className={clsx('text-[10px] font-medium tracking-wide',
-          isMingGong ? 'text-amber-500' : isShenGong ? 'text-sky-500' : ''
-        )}
-          style={!isMingGong && !isShenGong ? { color: 'var(--t-faint)' } : undefined}
-        >
+      <div className="flex items-center gap-1 mb-1 pr-8">
+        <span className={clsx('text-[12px] font-semibold tracking-wide',
+          isMingGong ? 'text-[#704900]' : isShenGong ? 'text-[#315b62]' : 'text-[#3d3528]'
+        )}>
           {name}
         </span>
         {isMingGong && (
-          <span className="text-[7px] text-amber-500/80 border border-amber-500/30 px-0.5 rounded leading-tight">命</span>
+          <span className="text-[9px] font-medium text-[#704900] border border-[#704900]/40 px-1 rounded leading-tight">命</span>
         )}
         {isShenGong && (
-          <span className="text-[7px] text-sky-500/80 border border-sky-500/30 px-0.5 rounded leading-tight">身</span>
+          <span className="text-[9px] font-medium text-[#315b62] border border-[#315b62]/40 px-1 rounded leading-tight">身</span>
         )}
       </div>
 
       {/* 干支 */}
-      <div className="text-[9px] font-mono mb-1" style={{ color: 'var(--t-faint)', opacity: 0.75 }}>{ganzhi}</div>
+      <div className="text-[10px] font-mono mb-1 text-[#555]">{ganzhi}</div>
 
       {/* 主星 */}
       <div className="flex flex-col gap-0.5 flex-1">
         {majorStars.length === 0 && (
-          <span className="text-[10px] italic" style={{ color: 'var(--t-faint)', opacity: 0.6 }}>空宫</span>
+          <span className="text-[11px] italic text-[#555]">空宫</span>
         )}
         {majorStars.map((star) => {
           const overlaySiHua = overlayStarSiHua?.[star.name];
@@ -138,8 +135,7 @@ export default function PalaceCell({
               onClick={onStarClick ? e => { e.stopPropagation(); onStarClick(star); } : undefined}
             >
               <span className={clsx(
-                'text-[13px] leading-tight font-bold tracking-tight cursor-pointer hover:brightness-125 transition-all',
-                star.brightness === 'bright' ? 'text-amber-300' : star.brightness === 'dim' ? 'text-amber-700/80' : 'text-amber-500',
+                'text-[14px] leading-snug font-bold tracking-tight text-[#30291f] cursor-pointer hover:text-[#704900] transition-colors',
               )}>
                 {star.name}
               </span>
@@ -166,7 +162,7 @@ export default function PalaceCell({
           {luckyStars.map(s => {
             const overlaySiHua = overlayStarSiHua?.[s.name];
             return (
-              <span key={s.name} className="inline-flex items-center text-[9px] text-sky-500/70 leading-tight">
+              <span key={s.name} className="inline-flex items-center text-[11px] text-[#555] leading-snug">
                 {s.name}
                 {s.siHua && <SiHuaBadge siHua={s.siHua} />}
                 {overlaySiHua && (
@@ -190,7 +186,7 @@ export default function PalaceCell({
       {shaStars.length > 0 && (
         <div className="flex flex-wrap gap-x-1">
           {shaStars.map(s => (
-            <span key={s.name} className="text-[9px] text-red-500/60 leading-tight">
+            <span key={s.name} className="text-[11px] text-[#555] leading-snug">
               {s.name}{s.siHua && <SiHuaBadge siHua={s.siHua} />}
             </span>
           ))}
@@ -201,7 +197,7 @@ export default function PalaceCell({
       {minorStars.length > 0 && (
         <div className="flex flex-wrap gap-x-1">
           {minorStars.map(s => (
-            <span key={s.name} className="text-[9px] leading-tight" style={{ color: 'var(--t-faint)', opacity: 0.75 }}>
+            <span key={s.name} className="text-[10px] leading-snug text-[#555]">
               {s.name}{s.brightnessRaw ? `[${s.brightnessRaw}]` : ''}{s.siHua && <SiHuaBadge siHua={s.siHua} />}
             </span>
           ))}

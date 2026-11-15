@@ -149,7 +149,7 @@ export default function InsightPanel({ readingKey, selectedPalace }: InsightPane
             </p>
           </div>
         ) : displayedText ? (
-          <article className="reading-markdown text-sm leading-7" style={{ color: 'var(--tx-1)' }}>
+          <article className="reading-markdown text-[15px] leading-relaxed" style={{ color: 'var(--tx-1)' }}>
             <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--ac)' }}>
               {displayedDimension?.[1]}
             </h2>
