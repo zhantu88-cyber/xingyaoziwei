@@ -16,11 +16,11 @@ const DIMENSIONS = [
   ['career', '事业', 'text_career'],
   ['wealth', '财富', 'text_wealth'],
   ['health', '健康', 'text_health'],
-  ['family', '家庭', 'text_family'],
+  ['family', '家庭/兄弟', 'text_family'],
   ['children', '子女', 'text_children'],
   ['move', '出行/变动', 'text_move'],
   ['friends', '人际', 'text_friends'],
-  ['home', '居所', 'text_home'],
+  ['home', '田宅/居所', 'text_home'],
   ['spirit', '内在', 'text_spirit'],
   ['parents', '父母', 'text_parents'],
 ] as const;
@@ -31,11 +31,12 @@ type Reading = { k: string } & Record<DimensionField, string | null>;
 const PALACE_DIMENSION: Record<string, DimensionField> = {
   // iztro 的 Palace.name 通常省略“宫”字，如“夫妻”“官禄”；同时兼容完整显示名。
   '命': 'text_personality', '命宫': 'text_personality',
+  '兄弟': 'text_family', '兄弟宫': 'text_family',
   '夫妻': 'text_love', '夫妻宫': 'text_love',
   '官禄': 'text_career', '官禄宫': 'text_career', '事业': 'text_career', '事业宫': 'text_career',
   '财帛': 'text_wealth', '财帛宫': 'text_wealth',
   '疾厄': 'text_health', '疾厄宫': 'text_health',
-  '田宅': 'text_family', '田宅宫': 'text_family',
+  '田宅': 'text_home', '田宅宫': 'text_home',
   '子女': 'text_children', '子女宫': 'text_children',
   '迁移': 'text_move', '迁移宫': 'text_move',
   '交友': 'text_friends', '交友宫': 'text_friends', '仆役': 'text_friends', '仆役宫': 'text_friends',
