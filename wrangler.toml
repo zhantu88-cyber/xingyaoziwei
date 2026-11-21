@@ -11,3 +11,27 @@ binding = "ASSETS"
 binding = "DB"
 database_name = "xingyaoziwei-db"
 database_id = "293d82d5-653a-418f-bc93-0958beebc2a8"
+
+[[r2_buckets]]
+binding = "R2_BUCKET_1"
+bucket_name = "xingyaoziwei-shard-1"
+
+[[r2_buckets]]
+binding = "R2_BUCKET_2"
+bucket_name = "xingyaoziwei-shard-2"
+
+[[r2_buckets]]
+binding = "R2_BUCKET_3"
+bucket_name = "xingyaoziwei-shard-3"
+
+[[r2_buckets]]
+binding = "R2_BUCKET_4"
+bucket_name = "xingyaoziwei-shard-4"
+
+[[r2_buckets]]
+binding = "R2_BUCKET_5"
+bucket_name = "xingyaoziwei-shard-5"
+
+[[r2_buckets]]
+binding = "R2_BUCKET_6"
+bucket_name = "xingyaoziwei-shard-6"

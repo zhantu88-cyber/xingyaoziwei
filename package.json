@@ -10,6 +10,8 @@
     "build": "next build --webpack",
     "workers:build": "npx @opennextjs/cloudflare build",
     "workers:deploy": "npm run workers:build && npx @opennextjs/cloudflare deploy",
+    "data:process": "node scripts/pipeline-process.js",
+    "data:import": "node scripts/import-batches.js",
     "db:init": "wrangler d1 execute xingyaoziwei-db --remote --file=./schema.sql",
     "db:import": "wrangler d1 execute xingyaoziwei-db --remote --file=./sample.sql",
     "start": "next start",
@@ -18,6 +20,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
+    "@aws-sdk/client-s3": "^3.1173.0",
     "@types/pg": "^8.20.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

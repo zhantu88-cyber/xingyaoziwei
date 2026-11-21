@@ -14,3 +14,13 @@ CREATE TABLE IF NOT EXISTS readings (
   text_spirit TEXT,
   text_parents TEXT
 );
+
+CREATE TABLE IF NOT EXISTS shard_index (
+  year INTEGER PRIMARY KEY,
+  bucket_binding TEXT NOT NULL CHECK (
+    bucket_binding IN (
+      'R2_BUCKET_1', 'R2_BUCKET_2', 'R2_BUCKET_3',
+      'R2_BUCKET_4', 'R2_BUCKET_5', 'R2_BUCKET_6'
+    )
+  )
+);
