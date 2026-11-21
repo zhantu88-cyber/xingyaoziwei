@@ -1,183 +1,135 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { Palace } from '@/lib/ziwei/types';
-
-interface InsightPanelProps {
-  selectedPalace?: Palace | null;
-  readingKey: string;
-}
 
 const DIMENSIONS = [
-  ['overview', '总览', 'text_overview'],
-  ['personality', '性格', 'text_personality'],
-  ['love', '感情', 'text_love'],
-  ['career', '事业', 'text_career'],
-  ['wealth', '财富', 'text_wealth'],
-  ['health', '健康', 'text_health'],
-  ['family', '家庭/兄弟', 'text_family'],
-  ['children', '子女', 'text_children'],
-  ['move', '出行/变动', 'text_move'],
-  ['friends', '人际', 'text_friends'],
-  ['home', '田宅/居所', 'text_home'],
-  ['spirit', '内在', 'text_spirit'],
-  ['parents', '父母', 'text_parents'],
+  { key: 'overview', label: '命宫总论' },
+  { key: 'personality', label: '性格' },
+  { key: 'love', label: '感情' },
+  { key: 'career', label: '事业' },
+  { key: 'wealth', label: '财运' },
+  { key: 'health', label: '健康' },
+  { key: 'family', label: '家庭' },
+  { key: 'children', label: '子女' },
+  { key: 'move', label: '迁移' },
+  { key: 'friends', label: '交友' },
+  { key: 'home', label: '田宅' },
+  { key: 'spirit', label: '精神' },
+  { key: 'parents', label: '父母' },
 ] as const;
 
-type DimensionField = (typeof DIMENSIONS)[number][2];
-type Reading = { k: string } & Record<DimensionField, string | null>;
+// /api/reading 直接返回扁平正文对象：{ overview, personality, love, ... }
+// 没有 data.c 这一层，所以取值必须是 data.personality，不能是 data.c.personality。
+type Reading = Record<string, string>;
 
-const PALACE_DIMENSION: Record<string, DimensionField> = {
-  // iztro 的 Palace.name 通常省略“宫”字，如“夫妻”“官禄”；同时兼容完整显示名。
-  '命': 'text_personality', '命宫': 'text_personality',
-  '兄弟': 'text_family', '兄弟宫': 'text_family',
-  '夫妻': 'text_love', '夫妻宫': 'text_love',
-  '官禄': 'text_career', '官禄宫': 'text_career', '事业': 'text_career', '事业宫': 'text_career',
-  '财帛': 'text_wealth', '财帛宫': 'text_wealth',
-  '疾厄': 'text_health', '疾厄宫': 'text_health',
-  '田宅': 'text_home', '田宅宫': 'text_home',
-  '子女': 'text_children', '子女宫': 'text_children',
-  '迁移': 'text_move', '迁移宫': 'text_move',
-  '交友': 'text_friends', '交友宫': 'text_friends', '仆役': 'text_friends', '仆役宫': 'text_friends',
-  '福德': 'text_spirit', '福德宫': 'text_spirit',
-  '父母': 'text_parents', '父母宫': 'text_parents',
-};
+export interface InsightPanelProps {
+  k?: string;
+  className?: string;
+  style?: CSSProperties;
+}
 
-export default function InsightPanel({ readingKey, selectedPalace }: InsightPanelProps) {
+export default function InsightPanel({ k, className = '', style }: InsightPanelProps) {
   const [reading, setReading] = useState<Reading | null>(null);
-  const [activeTab, setActiveTab] = useState<DimensionField>('text_overview');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedPalaceName = selectedPalace?.name;
+  const load = useCallback(async (key: string, signal: AbortSignal) => {
+    setLoading(true);
+    setError(null);
+    setReading(null);
 
-  useEffect(() => {
-    setActiveTab(selectedPalaceName ? PALACE_DIMENSION[selectedPalaceName] ?? 'text_overview' : 'text_overview');
-  }, [selectedPalaceName]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadReading() {
-      setLoading(true);
-      setError(false);
-      setReading(null);
-      setActiveTab('text_overview');
-
-      try {
-        const response = await fetch(`/api/reading?k=${encodeURIComponent(readingKey)}`, {
-          signal: controller.signal,
-          cache: 'no-store',
-        });
-        if (!response.ok) throw new Error(`Reading request failed (${response.status})`);
-
-        const data = (await response.json()) as Reading;
-        setReading(data);
-      } catch (cause) {
-        if (!controller.signal.aborted) {
-          console.error('Unable to load reading:', cause);
-          setError(true);
+    try {
+      const res = await fetch(`/api/reading?k=${encodeURIComponent(key)}`, { signal });
+      if (!res.ok) {
+        let detail = '';
+        try {
+          detail = await res.text();
+        } catch (textError) {
+          console.error('[InsightPanel] 读取错误响应体失败:', textError);
         }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        const message = `HTTP ${res.status} ${res.statusText}${detail ? ` · ${detail.slice(0, 300)}` : ''}`;
+        console.error('[InsightPanel] /api/reading 返回错误:', message);
+        setError(message);
+        return;
       }
+
+      let json: unknown;
+      try {
+        json = await res.json();
+      } catch (jsonError) {
+        console.error('[InsightPanel] JSON 解析失败:', jsonError);
+        setError(`JSON 解析失败：${jsonError instanceof Error ? jsonError.message : String(jsonError)}`);
+        return;
+      }
+
+      if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        console.error('[InsightPanel] API 返回值不是正文对象:', json);
+        setError('API 返回值不是正文对象');
+        return;
+      }
+
+      // 直接读取扁平字段（data.personality / data.love / ...）。
+      setReading(json as Reading);
+    } catch (fetchError) {
+      if (signal.aborted) return;
+      console.error('[InsightPanel] fetch /api/reading 失败:', fetchError);
+      setError(`请求失败：${fetchError instanceof Error ? fetchError.message : String(fetchError)}`);
+    } finally {
+      if (!signal.aborted) setLoading(false);
     }
+  }, []);
 
-    void loadReading();
+  useEffect(() => {
+    if (!k) {
+      console.error('[InsightPanel] 缺少 k 参数，无法加载命盘解读');
+      setError('缺少命盘 key（k）');
+      setReading(null);
+      return;
+    }
+    const controller = new AbortController();
+    void load(k, controller.signal);
     return () => controller.abort();
-  }, [readingKey]);
+  }, [k, load]);
 
-  const activeDimension = DIMENSIONS.find(([, , field]) => field === activeTab);
-  const activeText = reading?.[activeTab];
-  const overviewText = reading?.text_overview;
-  const displayedTab = activeTab !== 'text_overview' && !activeText && overviewText
-    ? 'text_overview'
-    : activeTab;
-  const displayedDimension = DIMENSIONS.find(([, , field]) => field === displayedTab);
-  const displayedText = reading?.[displayedTab];
+  if (loading) {
+    return <aside className={className} style={style}>解读加载中…</aside>;
+  }
+
+  if (error) {
+    return (
+      <aside className={className} style={{ ...style, color: '#b91c1c', whiteSpace: 'pre-wrap' }} role="alert">
+        解读加载失败：{error}
+      </aside>
+    );
+  }
+
+  const sections = DIMENSIONS
+    .map(({ key, label }) => {
+      // 扁平结构直接取 reading[key]，没有 reading.c 这一层。
+      const text = reading?.[key];
+      return typeof text === 'string' && text.trim().length > 0
+        ? { key: String(key), label: String(label), text }
+        : null;
+    })
+    .filter((item): item is { key: string; label: string; text: string } => item !== null);
+
+  if (!sections.length) {
+    // 仅在数据已拿到、但确实没有正文时才告警；首帧 reading 仍为 null 不误报。
+    // 错误路径已经单独输出 console.error + 错误面板。
+    if (reading) console.warn('[InsightPanel] API 返回成功，但 13 个维度都没有正文:', reading);
+    return <aside className={className} style={style}>暂无任何内容</aside>;
+  }
 
   return (
-    <aside className="card-glass min-w-0 rounded-xl px-4 py-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--ac)' }}>
-          命理档案
-        </h3>
-        {reading && (
-          <span className="truncate text-[10px]" style={{ color: 'var(--tx-3)' }}>
-            {reading.k}
-          </span>
-        )}
-      </div>
-
-      {reading && (
-        <div className="mb-3 flex gap-1 overflow-x-auto border-b pb-2" style={{ borderColor: 'var(--bdr)' }}>
-          {DIMENSIONS.map(([key, label, field]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setActiveTab(field)}
-              aria-pressed={displayedTab === field}
-              className="shrink-0 rounded-md px-2.5 py-1.5 text-xs transition-colors"
-              style={{
-                color: displayedTab === field ? 'var(--ac)' : 'var(--tx-3)',
-                background: displayedTab === field ? 'rgba(180, 120, 20, 0.1)' : 'transparent',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="max-h-[600px] min-h-[220px] overflow-y-auto pr-2">
-        {loading ? (
-          <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-center">
-            <span
-              className="h-6 w-6 animate-spin rounded-full border-2 border-current border-r-transparent"
-              style={{ color: 'var(--ac)' }}
-              aria-hidden="true"
-            />
-            <p className="text-xs" style={{ color: 'var(--tx-3)' }}>
-              古籍库查阅中，请稍候...
-            </p>
-          </div>
-        ) : error ? (
-          <div className="flex min-h-[220px] items-center justify-center px-3 text-center">
-            <p className="text-xs" style={{ color: 'var(--tx-3)' }}>
-              暂时无法读取命理档案，请稍后重试。
-            </p>
-          </div>
-        ) : displayedText ? (
-          <article className="reading-markdown text-[15px] leading-relaxed" style={{ color: 'var(--tx-1)' }}>
-            <h2 className="mb-3 text-base font-semibold" style={{ color: 'var(--ac)' }}>
-              {displayedDimension?.[1]}
-            </h2>
-            <ReactMarkdown
-              components={{
-                h1: ({ children }) => <h1 className="mb-3 mt-5 text-lg font-semibold">{children}</h1>,
-                h2: ({ children }) => <h2 className="mb-2 mt-5 text-base font-semibold">{children}</h2>,
-                h3: ({ children }) => <h3 className="mb-2 mt-4 text-sm font-semibold" style={{ color: 'var(--ac)' }}>{children}</h3>,
-                p: ({ children }) => <p className="mb-3 whitespace-pre-wrap">{children}</p>,
-                ul: ({ children }) => <ul className="mb-3 list-disc space-y-1 pl-5">{children}</ul>,
-                ol: ({ children }) => <ol className="mb-3 list-decimal space-y-1 pl-5">{children}</ol>,
-                li: ({ children }) => <li>{children}</li>,
-                strong: ({ children }) => <strong className="font-semibold" style={{ color: 'var(--ac)' }}>{children}</strong>,
-                blockquote: ({ children }) => <blockquote className="my-3 border-l-2 pl-3 opacity-80" style={{ borderColor: 'var(--ac)' }}>{children}</blockquote>,
-                hr: () => <hr className="my-4" style={{ borderColor: 'var(--bdr)' }} />,
-              }}
-            >
-              {displayedText}
-            </ReactMarkdown>
-          </article>
-        ) : (
-          <div className="flex min-h-[220px] items-center justify-center px-3 text-center">
-            <p className="text-xs" style={{ color: 'var(--tx-3)' }}>
-              暂无{activeDimension?.[1] ?? '该维度'}内容。
-            </p>
-          </div>
-        )}
-      </div>
+    <aside className={className} style={style}>
+      {sections.map(({ key, label, text }) => (
+        <section key={key} style={{ marginBottom: 24 }}>
+          <h3>{label}</h3>
+          {/* 正文是 Markdown 长文本，交给 react-markdown 渲染 ### / ** / - 等排版。 */}
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </section>
+      ))}
     </aside>
   );
 }

@@ -7,6 +7,21 @@ import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
 
+// 把实际小时(0-23)换算成时辰序号(0-11)：23 点与 0 点都算 0（子时），
+// 1/2 点=1（丑），3/4 点=2（寅）……21/22 点=11（亥）。与 R2 key 第 4 段一致。
+function hourToShichenIndex(hour: number): number {
+  return Math.floor((Math.trunc(hour) + 1) / 2) % 12;
+}
+
+// 性别归一化：'男'/男性/1/male/m → male，'女'/女性/0/female/f → female。
+// 兼容中英文大小写、数字与前后空格；无法识别时返回 null，避免拼出错误 key。
+function normalizeGender(gender: unknown): 'male' | 'female' | null {
+  const value = String(gender ?? '').trim().toLowerCase();
+  if (['male', 'm', 'man', '男', '男性', '1', 'true'].includes(value)) return 'male';
+  if (['female', 'f', 'woman', '女', '女性', '0', 'false'].includes(value)) return 'female';
+  return null;
+}
+
 /**
  * 命盘页 —— 开源版「排盘引擎 Demo」
  *
@@ -23,8 +38,9 @@ export default function ChartPage() {
   const [view, setView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
 
-  const readingKey = chart
-    ? `${chart.birthInfo.year}-${String(chart.birthInfo.month).padStart(2, '0')}-${String(chart.birthInfo.day).padStart(2, '0')}-${chart.birthInfo.hour}-${chart.birthInfo.gender}`
+  const gender = normalizeGender(chart?.birthInfo.gender);
+  const readingKey = chart && gender
+    ? `${chart.birthInfo.year}-${String(chart.birthInfo.month).padStart(2, '0')}-${String(chart.birthInfo.day).padStart(2, '0')}-${hourToShichenIndex(chart.birthInfo.hour)}-${gender}`
     : null;
 
   // ── 未起盘：展示出生信息表单 ──
@@ -69,7 +85,7 @@ export default function ChartPage() {
         }}
       >
         <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
-        <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} />
+        <InsightPanel k={readingKey ?? ''} />
       </div>
     </main>
   );

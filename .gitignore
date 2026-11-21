@@ -14,3 +14,5 @@ node_modules
 /data-batches/
 /data-batches-preview/
 /logs/*.log
+r2-data/
+upload-history.json
