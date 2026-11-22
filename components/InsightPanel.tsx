@@ -1,38 +1,135 @@
 'use client';
 
-import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 
+// 右侧「命理档案」分栏：与原始 UI 一致，默认从「总论」开始。
+// 每个 Tab 对应 /api/reading 返回的一个维度字段。
 const DIMENSIONS = [
-  { key: 'overview', label: '命宫总论' },
+  { key: 'overview', label: '总论' },
   { key: 'personality', label: '性格' },
   { key: 'love', label: '感情' },
   { key: 'career', label: '事业' },
-  { key: 'wealth', label: '财运' },
+  { key: 'wealth', label: '财富' },
   { key: 'health', label: '健康' },
-  { key: 'family', label: '家庭' },
+  { key: 'family', label: '家庭/兄弟' },
   { key: 'children', label: '子女' },
   { key: 'move', label: '迁移' },
   { key: 'friends', label: '交友' },
   { key: 'home', label: '田宅' },
-  { key: 'spirit', label: '精神' },
+  { key: 'spirit', label: '福德' },
   { key: 'parents', label: '父母' },
 ] as const;
 
-// /api/reading 直接返回扁平正文对象：{ overview, personality, love, ... }
-// 没有 data.c 这一层，所以取值必须是 data.personality，不能是 data.c.personality。
+type DimensionKey = (typeof DIMENSIONS)[number]['key'];
 type Reading = Record<string, string>;
 
+// 宫位名 → 维度：点左边命盘的格子时，右侧自动跳到对应 Tab。
+// 命宫主「性格」，所以命宫映射到 personality；「总论」是进入时的默认首页，不绑定格子。
+const PALACE_TO_DIMENSION: Array<[RegExp, DimensionKey]> = [
+  [/命宫|命/, 'personality'],
+  [/夫妻|感情|婚/, 'love'],
+  [/官禄|事业|职场/, 'career'],
+  [/财帛|财富|财/, 'wealth'],
+  [/疾厄|健康/, 'health'],
+  [/兄弟|家庭|手足/, 'family'],
+  [/子女|儿女/, 'children'],
+  [/迁移|外出/, 'move'],
+  [/仆役|交友|人际|朋友/, 'friends'],
+  [/田宅|房产/, 'home'],
+  [/福德|精神/, 'spirit'],
+  [/父母|长辈/, 'parents'],
+];
+
+function palaceToDimension(name: unknown): DimensionKey | null {
+  if (typeof name !== 'string') return null;
+  const value = name.trim();
+  if (!value) return null;
+  for (const [pattern, key] of PALACE_TO_DIMENSION) {
+    if (pattern.test(value)) return key;
+  }
+  return null;
+}
+
 export interface InsightPanelProps {
+  /** 选中的宫位（来自 ChartBoard 的 onPalaceSelect），用于自动切换 Tab */
+  selectedPalace?: { name?: string } | null;
+  /** 命理正文的 key（来自 page.tsx） */
+  readingKey?: string;
+  /** 兼容旧调用：也可直接传 k */
   k?: string;
   className?: string;
   style?: CSSProperties;
 }
 
-export default function InsightPanel({ k, className = '', style }: InsightPanelProps) {
+const ACCENT = '#b8860b';
+
+// Markdown 排版，避免长文本挤成一坨。
+const mdComponents = {
+  h1: ({ children }: { children?: ReactNode }) => (
+    <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 10px', color: ACCENT }}>{children}</h3>
+  ),
+  h2: ({ children }: { children?: ReactNode }) => (
+    <h3 style={{ fontSize: 15, fontWeight: 700, margin: '16px 0 8px', color: ACCENT }}>{children}</h3>
+  ),
+  h3: ({ children }: { children?: ReactNode }) => (
+    <h4 style={{ fontSize: 14, fontWeight: 700, margin: '14px 0 6px' }}>{children}</h4>
+  ),
+  p: ({ children }: { children?: ReactNode }) => (
+    <p style={{ margin: '0 0 12px' }}>{children}</p>
+  ),
+  strong: ({ children }: { children?: ReactNode }) => (
+    <strong style={{ color: ACCENT, fontWeight: 700 }}>{children}</strong>
+  ),
+  ul: ({ children }: { children?: ReactNode }) => (
+    <ul style={{ margin: '0 0 12px', paddingLeft: 20 }}>{children}</ul>
+  ),
+  ol: ({ children }: { children?: ReactNode }) => (
+    <ol style={{ margin: '0 0 12px', paddingLeft: 20 }}>{children}</ol>
+  ),
+  li: ({ children }: { children?: ReactNode }) => (
+    <li style={{ marginBottom: 4 }}>{children}</li>
+  ),
+};
+
+export default function InsightPanel({
+  selectedPalace,
+  readingKey,
+  k,
+  className = '',
+  style,
+}: InsightPanelProps) {
+  const fetchKey = readingKey || k || '';
   const [reading, setReading] = useState<Reading | null>(null);
+  const [active, setActive] = useState<DimensionKey>('overview');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const tabListRef = useRef<HTMLDivElement>(null);
+
+  // 点左边宫位 → 自动跳到对应 Tab
+  useEffect(() => {
+    const target = palaceToDimension(selectedPalace?.name);
+    if (target) setActive(target);
+  }, [selectedPalace?.name]);
+
+  // 切换 Tab / 正文变化后：正文滚动条回到顶部 + Tab 栏自动横向滚到选中项。
+  // 这样点左侧格子或右侧标签时，视图会「自动跳转」到新内容开头，不用手动拖滚动条。
+  useEffect(() => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+
+    const container = tabListRef.current;
+    const el = container?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (container && el) {
+      const left = el.offsetLeft - container.offsetLeft;
+      const right = left + el.offsetWidth;
+      if (left < container.scrollLeft) {
+        container.scrollLeft = left;
+      } else if (right > container.scrollLeft + container.clientWidth) {
+        container.scrollLeft = right - container.clientWidth;
+      }
+    }
+  }, [active, reading]);
 
   const load = useCallback(async (key: string, signal: AbortSignal) => {
     setLoading(true);
@@ -68,8 +165,6 @@ export default function InsightPanel({ k, className = '', style }: InsightPanelP
         setError('API 返回值不是正文对象');
         return;
       }
-
-      // 直接读取扁平字段（data.personality / data.love / ...）。
       setReading(json as Reading);
     } catch (fetchError) {
       if (signal.aborted) return;
@@ -81,55 +176,111 @@ export default function InsightPanel({ k, className = '', style }: InsightPanelP
   }, []);
 
   useEffect(() => {
-    if (!k) {
-      console.error('[InsightPanel] 缺少 k 参数，无法加载命盘解读');
-      setError('缺少命盘 key（k）');
+    if (!fetchKey) {
+      console.error('[InsightPanel] 缺少 readingKey/k 参数，无法加载命盘解读');
+      setError('缺少命盘 key（readingKey）');
       setReading(null);
       return;
     }
     const controller = new AbortController();
-    void load(k, controller.signal);
+    void load(fetchKey, controller.signal);
     return () => controller.abort();
-  }, [k, load]);
+  }, [fetchKey, load]);
+
+  const panelStyle: CSSProperties = {
+    background: '#fff',
+    border: '1px solid #eee',
+    borderRadius: 12,
+    padding: '16px 16px 8px',
+    display: 'flex',
+    flexDirection: 'column',
+    // 面板自身限高，内容区内部滚动，避免把整页撑得老长。
+    maxHeight: 'calc(100vh - 120px)',
+    overflow: 'hidden',
+    ...style,
+  };
 
   if (loading) {
-    return <aside className={className} style={style}>解读加载中…</aside>;
+    return <aside className={className} style={panelStyle}>解读加载中…</aside>;
   }
-
   if (error) {
     return (
-      <aside className={className} style={{ ...style, color: '#b91c1c', whiteSpace: 'pre-wrap' }} role="alert">
-        解读加载失败：{error}
+      <aside className={className} style={panelStyle} role="alert">
+        <div style={{ fontWeight: 700, color: ACCENT, marginBottom: 12 }}>命理档案</div>
+        <div style={{ color: '#b91c1c', whiteSpace: 'pre-wrap', fontSize: 13 }}>解读加载失败：{error}</div>
       </aside>
     );
   }
 
-  const sections = DIMENSIONS
-    .map(({ key, label }) => {
-      // 扁平结构直接取 reading[key]，没有 reading.c 这一层。
-      const text = reading?.[key];
-      return typeof text === 'string' && text.trim().length > 0
-        ? { key: String(key), label: String(label), text }
-        : null;
-    })
-    .filter((item): item is { key: string; label: string; text: string } => item !== null);
-
-  if (!sections.length) {
-    // 仅在数据已拿到、但确实没有正文时才告警；首帧 reading 仍为 null 不误报。
-    // 错误路径已经单独输出 console.error + 错误面板。
-    if (reading) console.warn('[InsightPanel] API 返回成功，但 13 个维度都没有正文:', reading);
-    return <aside className={className} style={style}>暂无任何内容</aside>;
-  }
+  const current = DIMENSIONS.find((d) => d.key === active) ?? DIMENSIONS[0];
+  const text = reading?.[current.key];
+  const hasText = typeof text === 'string' && text.trim().length > 0;
 
   return (
-    <aside className={className} style={style}>
-      {sections.map(({ key, label, text }) => (
-        <section key={key} style={{ marginBottom: 24 }}>
-          <h3>{label}</h3>
-          {/* 正文是 Markdown 长文本，交给 react-markdown 渲染 ### / ** / - 等排版。 */}
-          <ReactMarkdown>{text}</ReactMarkdown>
-        </section>
-      ))}
+    <aside className={className} style={panelStyle}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: ACCENT, marginBottom: 12, letterSpacing: 1 }}>
+        命理档案
+      </div>
+
+      <div
+        ref={tabListRef}
+        role="tablist"
+        style={{
+          display: 'flex',
+          gap: 14,
+          borderBottom: '1px solid #f0f0f0',
+          overflowX: 'auto',
+          marginBottom: 14,
+          whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}
+      >
+        {DIMENSIONS.map((d) => {
+          const selected = d.key === active;
+          return (
+            <button
+              key={d.key}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setActive(d.key)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                padding: '8px 2px',
+                fontSize: 13,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                color: selected ? ACCENT : '#888',
+                fontWeight: selected ? 700 : 400,
+                borderBottom: `2px solid ${selected ? ACCENT : 'transparent'}`,
+              }}
+            >
+              {d.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 正文区独立滚动：minHeight:0 是 flex 子项出现滚动条的关键 */}
+      <div
+        ref={contentRef}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          fontSize: 13.5,
+          lineHeight: 1.8,
+          color: '#333',
+        }}
+      >
+        {hasText ? (
+          <ReactMarkdown components={mdComponents}>{text as string}</ReactMarkdown>
+        ) : (
+          <div style={{ color: '#999', textAlign: 'center', padding: '40px 0' }}>暂无任何内容。</div>
+        )}
+      </div>
     </aside>
   );
 }

@@ -85,7 +85,7 @@ export default function ChartPage() {
         }}
       >
         <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
-        <InsightPanel k={readingKey ?? ''} />
+        <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} />
       </div>
     </main>
   );

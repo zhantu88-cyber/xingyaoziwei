@@ -16,3 +16,4 @@ node_modules
 /logs/*.log
 r2-data/
 upload-history.json
+*.bat
