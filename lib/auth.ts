@@ -96,7 +96,9 @@ function subtle(): SubtleCrypto {
 
 // ─── 密码哈希（PBKDF2） ──────────────────────────────────────────────────
 
-const PBKDF2_ITERATIONS = 210_000;
+// 注意：Cloudflare Workers 的 Web Crypto 实现将 PBKDF2 迭代上限硬性限制为
+// 100000 次（超过会直接抛错），实测线上 100k 次耗时 <1ms，无 CPU 压力。
+const PBKDF2_ITERATIONS = 100_000;
 
 /** 生成随机 salt（16 字节，hex 字符串）。 */
 export function generateSalt(): string {
