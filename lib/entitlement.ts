@@ -46,7 +46,7 @@ export function checkQuota(user: UserRow): QuotaCheck {
   if (availableCredits(user) > 0) return { allowed: true, useTimePass: false };
   return {
     allowed: false,
-    reason: '暂无可用额度。请前往「账号与兑换」页面输入兑换码开通。',
+    reason: '免费次数已用完。如需继续，请在「账号与兑换」页面使用兑换码充值或开通不限问。',
   };
 }
 

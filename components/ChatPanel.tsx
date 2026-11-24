@@ -71,7 +71,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
 
       if (!res.ok) {
         let msg = data.error ?? '解读失败，请稍后重试。';
-        if (data.needLogin) msg = '请先登录后再使用 AI 问答。前往「账号与兑换」页面登录。';
+        if (data.needLogin) msg = '请先登录后再使用 AI 问答——注册即免费送 1 次，无需兑换码。点击右上角「登录领免费次数」。';
         if (data.needRedeem) msg = data.error ?? '暂无可用额度，请先到「账号与兑换」页面输入兑换码。';
         throw new Error(msg);
       }
@@ -109,7 +109,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
           ) : credits !== null ? (
             <span>剩余 <span style={{ color: 'var(--t-gold)' }}>{credits}</span> 次</span>
           ) : (
-            <a href="/redeem" style={{ color: 'var(--t-gold)', textDecoration: 'underline' }}>登录 / 兑换</a>
+            <a href="/redeem" style={{ color: 'var(--t-gold)', textDecoration: 'underline' }}>登录领免费次数</a>
           )}
         </div>
       </div>
