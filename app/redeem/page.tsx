@@ -58,13 +58,19 @@ export default function RedeemPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, turnstileToken }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as { error?: string; freeCreditGranted?: boolean };
       if (!res.ok) {
         setMsg({ type: 'err', text: data.error ?? '操作失败' });
         return;
       }
       setPassword('');
-      setMsg({ type: 'ok', text: mode === 'login' ? '登录成功' : '注册成功，已自动登录（赠送 1 次免费问答）' });
+      if (mode === 'login') {
+        setMsg({ type: 'ok', text: '登录成功' });
+      } else if (data.freeCreditGranted === false) {
+        setMsg({ type: 'ok', text: '注册成功，已自动登录。免费体验次数已被领取过，如需提问请使用兑换码。' });
+      } else {
+        setMsg({ type: 'ok', text: '注册成功，已自动登录（赠送 1 次免费问答）' });
+      }
       await loadMe();
     } catch {
       setMsg({ type: 'err', text: '网络错误，请稍后重试' });

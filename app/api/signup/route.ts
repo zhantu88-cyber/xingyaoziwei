@@ -1,4 +1,9 @@
 import {
+  checkSignupQuota,
+  getClientIp,
+  SIGNUP_ALERT_PER_HOUR,
+} from '@/lib/entitlement';
+import {
   createSessionToken,
   generateSalt,
   getDb,
@@ -56,13 +61,21 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: '用户名已被占用' }, { status: 409 });
   }
 
+  // 防养号：按注册 IP 统计近 24h 注册数，超阈值则注册成功但不送免费额度。
+  const ip = getClientIp(request);
+  const { grantFree, lastHour } = await checkSignupQuota(db, ip);
+  if (lastHour >= SIGNUP_ALERT_PER_HOUR) {
+    console.warn(`[signup-alert] ip=${ip} registered ${lastHour} accounts within 1 hour`);
+  }
+
   const salt = generateSalt();
   const passwordHash = await hashPassword(body.password, salt);
   const createdAt = new Date().toISOString();
+  const initialCredits = grantFree ? 1 : 0;
 
   await db.prepare(
-    "INSERT INTO users (username, password_hash, salt, expires_at, credits, credits_expires_at, free_used, created_at) VALUES (?, ?, ?, NULL, 1, NULL, 0, ?)",
-  ).bind(username, passwordHash, salt, createdAt).run();
+    "INSERT INTO users (username, password_hash, salt, expires_at, credits, credits_expires_at, free_used, signup_ip, created_at) VALUES (?, ?, ?, NULL, ?, NULL, 0, ?, ?)",
+  ).bind(username, passwordHash, salt, initialCredits, ip, createdAt).run();
 
   const row = await db.prepare('SELECT id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, created_at FROM users WHERE username = ?')
     .bind(username)
@@ -81,6 +94,7 @@ export async function POST(request: Request): Promise<Response> {
         credits: row.credits,
         freeUsed: row.free_used,
       },
+      freeCreditGranted: grantFree,
       turnstileSkipped: turnstile.skipped,
     },
     { status: 201, headers: { 'Set-Cookie': sessionCookieHeader(token), 'Cache-Control': 'no-store' } },

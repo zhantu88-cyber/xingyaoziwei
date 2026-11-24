@@ -42,9 +42,12 @@ CREATE TABLE IF NOT EXISTS users (
   credits INTEGER NOT NULL DEFAULT 0,
   credits_expires_at TEXT,
   last_chat_at TEXT,
+  signup_ip TEXT,
   free_used INTEGER NOT NULL DEFAULT 0,
   created_at TEXT
 );
+-- 注册 IP 与时间戳的索引：支撑"同 IP 24h 内注册数"统计与按 IP 限免费额度。
+CREATE INDEX IF NOT EXISTS idx_users_signup_ip_created ON users(signup_ip, created_at);
 
 -- 兑换码：kind = time（时间包，duration_days 天不限问）/ credits（次数包，credit_amount 次）。
 -- status = unused / used。used_by 关联 users.id。

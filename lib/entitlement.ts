@@ -20,6 +20,41 @@ export const ALERT_THRESHOLD = 80; // 当日达到此次数触发一次告警（
 export const MIN_CHAT_INTERVAL_MS = 3000; // 两次问答最小间隔（毫秒）
 export const CREDIT_VALIDITY_DAYS = 180; // 次数包有效期（天）
 
+// 防养号：同 IP 在免费窗口内前 FREE_SIGNUPS_PER_IP 个账号送免费额度。
+export const FREE_WINDOW_HOURS = 24; // 统计窗口（小时）
+export const FREE_SIGNUPS_PER_IP = 3; // 窗口内赠送免费次数的账号上限
+export const SIGNUP_ALERT_PER_HOUR = 8; // 同 IP 1 小时内注册数告警阈值
+
+/** 从请求里取真实访客 IP：Cloudflare 的 CF-Connecting-IP 不可伪造；本地回退。 */
+export function getClientIp(request: Request): string {
+  const cf = request.headers.get('cf-connecting-ip');
+  if (cf) return cf.trim().slice(0, 64);
+  const xff = request.headers.get('x-forwarded-for');
+  if (xff) return xff.split(',')[0].trim().slice(0, 64);
+  return 'unknown';
+}
+
+/**
+ * 注册时判断该 IP 是否还应赠送免费次数。
+ * 返回 { grantFree, recent24h, lastHour }。
+ */
+export async function checkSignupQuota(
+  db: D1Like,
+  ip: string,
+): Promise<{ grantFree: boolean; recent24h: number; lastHour: number }> {
+  const now = Date.now();
+  const since24h = new Date(now - FREE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
+  const since1h = new Date(now - 60 * 60 * 1000).toISOString();
+
+  const countRow = await db.prepare(
+    'SELECT COUNT(*) AS n, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS h FROM users WHERE signup_ip = ? AND created_at >= ?',
+  ).bind(since1h, ip, since24h).first<{ n: number; h: number | null }>();
+
+  const recent24h = countRow?.n ?? 0;
+  const lastHour = countRow?.h ?? 0;
+  return { grantFree: recent24h < FREE_SIGNUPS_PER_IP, recent24h, lastHour };
+}
+
 // ─── 权益判断 ────────────────────────────────────────────────────────
 
 /** 时间包（7 天不限问）是否生效。 */
