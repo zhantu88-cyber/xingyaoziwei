@@ -25,6 +25,8 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [hasTimePass, setHasTimePass] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,58 +35,61 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
     }
   }, [messages]);
 
+  // 加载当前额度/权益（前端只读 /api/me，不用 localStorage）
+  useEffect(() => {
+    fetch('/api/me', { cache: 'no-store' })
+      .then(r => r.json())
+      .then((d: { authenticated?: boolean; user?: { credits?: number; hasTimePass?: boolean } | null }) => {
+        if (d.authenticated && d.user) {
+          setCredits(d.user.credits ?? 0);
+          setHasTimePass(!!d.user.hasTimePass);
+        }
+      })
+      .catch(() => { /* 未登录或网络错误时忽略 */ });
+  }, []);
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
     const userMsg: Message = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
+    // 追加一条占位的助手消息，loading 时显示光标
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      const res = await fetch('/api/interpret', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, messages: [...messages, userMsg] }),
       });
 
-      if (res.status === 404) throw new Error('api-missing');
-      if (!res.ok) throw new Error('请求失败');
-      if (!res.body) throw new Error('无响应流');
+      const data = await res.json().catch(() => ({})) as {
+        text?: string; error?: string; needLogin?: boolean; needRedeem?: boolean;
+        credits?: number | null; dailyCount?: number;
+      };
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let assistantText = '';
-
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') break;
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.delta?.text ?? '';
-              assistantText += delta;
-              setMessages(prev => {
-                const updated = [...prev];
-                updated[updated.length - 1] = { role: 'assistant', content: assistantText };
-                return updated;
-              });
-            } catch { /* skip */ }
-          }
-        }
+      if (!res.ok) {
+        let msg = data.error ?? '解读失败，请稍后重试。';
+        if (data.needLogin) msg = '请先登录后再使用 AI 问答。前往「账号与兑换」页面登录。';
+        if (data.needRedeem) msg = data.error ?? '暂无可用额度，请先到「账号与兑换」页面输入兑换码。';
+        throw new Error(msg);
       }
+
+      const reply = data.text ?? '';
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'assistant', content: reply };
+        return updated;
+      });
+      if (typeof data.credits === 'number') setCredits(data.credits);
     } catch (e) {
-      const missing = e instanceof Error && e.message === 'api-missing';
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: missing ? '开源版不含 AI 解读接口（/api/interpret），需要你自己实现后才能用，详见 README「快速开始」。排盘本身不需要任何 API Key。' : '解读失败，请检查API配置或稍后重试。',
-      }]);
+      const msg = e instanceof Error ? e.message : '解读失败，请检查网络或稍后重试。';
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { role: 'assistant', content: msg };
+        return updated;
+      });
     } finally {
       setLoading(false);
     }
@@ -93,9 +98,20 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
   return (
     <div className="flex flex-col h-full rounded-xl overflow-hidden card-glass">
       {/* 标题 */}
-      <div className="px-4 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--t-border)' }}>
-        <h3 className="text-xs font-medium tracking-widest" style={{ color: 'var(--t-gold)' }}>AI 命盘解读</h3>
-        <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-faint)' }}>倪海厦正宗紫微斗数 · 智慧解析</p>
+      <div className="px-4 py-3 flex-shrink-0 flex items-start justify-between gap-2" style={{ borderBottom: '1px solid var(--t-border)' }}>
+        <div>
+          <h3 className="text-xs font-medium tracking-widest" style={{ color: 'var(--t-gold)' }}>AI 命盘解读</h3>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-faint)' }}>倪海厦正宗紫微斗数 · 智慧解析</p>
+        </div>
+        <div className="text-right text-[10px] flex-shrink-0" style={{ color: 'var(--t-faint)' }}>
+          {hasTimePass ? (
+            <span style={{ color: 'var(--t-gold)' }}>不限问 · 时间包</span>
+          ) : credits !== null ? (
+            <span>剩余 <span style={{ color: 'var(--t-gold)' }}>{credits}</span> 次</span>
+          ) : (
+            <a href="/redeem" style={{ color: 'var(--t-gold)', textDecoration: 'underline' }}>登录 / 兑换</a>
+          )}
+        </div>
       </div>
 
       {/* 消息列表 */}

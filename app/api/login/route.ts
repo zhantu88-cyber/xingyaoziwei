@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = await getDb();
   const row = await db.prepare(
-    'SELECT id, username, password_hash, salt, expires_at, free_used, created_at FROM users WHERE username = ?',
+    'SELECT id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, created_at FROM users WHERE username = ?',
   ).bind(username).first<UserRow>();
 
   // 用户不存在时也算一次哈希，缩短用户枚举的时间差。
@@ -65,6 +65,7 @@ export async function POST(request: Request): Promise<Response> {
         id: row.id,
         username: row.username,
         isPaid: isPaidActive(row),
+        credits: row.credits,
         freeUsed: row.free_used,
       },
       turnstileSkipped: turnstile.skipped,

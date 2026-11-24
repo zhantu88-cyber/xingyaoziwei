@@ -201,16 +201,21 @@ export type UserRow = {
   password_hash: string;
   salt: string;
   expires_at: string | null;
+  credits: number;
+  credits_expires_at: string | null;
+  last_chat_at: string | null;
   free_used: number;
   created_at: string | null;
 };
+
+const USER_COLUMNS = 'id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, created_at';
 
 /** 读取当前登录用户，未登录返回 null。 */
 export async function getCurrentUser(request: Request): Promise<UserRow | null> {
   const uid = await verifySessionToken(readCookie(request, SESSION_COOKIE));
   if (uid === null) return null;
   const db = await getDb();
-  return db.prepare('SELECT id, username, password_hash, salt, expires_at, free_used, created_at FROM users WHERE id = ?')
+  return db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`)
     .bind(uid)
     .first<UserRow>();
 }

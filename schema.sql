@@ -27,23 +27,44 @@ CREATE TABLE IF NOT EXISTS shard_index (
 
 -- ─── 账号与权益（AI 付费问答系统） ───
 -- 密码用 PBKDF2(Web Crypto) 哈希，salt 为 16 字节随机 hex；不使用 bcrypt/MD5/SHA1。
--- expires_at 为权益到期时间(ISO 8601)，NULL 表示未付费。
--- free_used 表示是否已用掉注册赠送的 1 次免费 AI 问答。
+-- 收费模型：额度制为主 + 一档时间包。
+--   expires_at          时间包（7 天不限问）到期时间，NULL 表示无时间包。
+--   credits             剩余问答额度（次数）。注册送 1 次。
+--   credits_expires_at  额度有效期；NULL=永久（注册赠送），购买次数包后为 180 天。
+--   last_chat_at        上次问答时间，用于最小间隔限流。
+--   free_used           旧版"是否已用免费次数"，保留兼容，新逻辑用 credits。
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   salt TEXT NOT NULL,
   expires_at TEXT,
+  credits INTEGER NOT NULL DEFAULT 0,
+  credits_expires_at TEXT,
+  last_chat_at TEXT,
   free_used INTEGER NOT NULL DEFAULT 0,
   created_at TEXT
 );
 
--- 兑换码：status = unused / used。used_by 关联 users.id。
+-- 兑换码：kind = time（时间包，duration_days 天不限问）/ credits（次数包，credit_amount 次）。
+-- status = unused / used。used_by 关联 users.id。
 CREATE TABLE IF NOT EXISTS redeem_codes (
   code TEXT PRIMARY KEY,
-  duration_days INTEGER NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'time',
+  duration_days INTEGER NOT NULL DEFAULT 0,
+  credit_amount INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'unused',
   used_by INTEGER,
   used_at TEXT
+);
+
+-- 每日用量：成本层（每日上限）与监控层（超阈值告警）的数据基础。
+-- day 为 UTC 日期 YYYY-MM-DD。alerted 标记当日是否已发过告警，避免重复打扰。
+CREATE TABLE IF NOT EXISTS usage_daily (
+  user_id INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 0,
+  tokens INTEGER NOT NULL DEFAULT 0,
+  alerted INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, day)
 );

@@ -61,10 +61,10 @@ export async function POST(request: Request): Promise<Response> {
   const createdAt = new Date().toISOString();
 
   await db.prepare(
-    'INSERT INTO users (username, password_hash, salt, expires_at, free_used, created_at) VALUES (?, ?, ?, NULL, 0, ?)',
+    "INSERT INTO users (username, password_hash, salt, expires_at, credits, credits_expires_at, free_used, created_at) VALUES (?, ?, ?, NULL, 1, NULL, 0, ?)",
   ).bind(username, passwordHash, salt, createdAt).run();
 
-  const row = await db.prepare('SELECT id, username, password_hash, salt, expires_at, free_used, created_at FROM users WHERE username = ?')
+  const row = await db.prepare('SELECT id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, created_at FROM users WHERE username = ?')
     .bind(username)
     .first<UserRow>();
   if (!row) {
@@ -78,6 +78,7 @@ export async function POST(request: Request): Promise<Response> {
         id: row.id,
         username: row.username,
         isPaid: isPaidActive(row),
+        credits: row.credits,
         freeUsed: row.free_used,
       },
       turnstileSkipped: turnstile.skipped,

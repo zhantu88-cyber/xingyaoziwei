@@ -1,8 +1,16 @@
 import { getCurrentUser, getDb } from '@/lib/auth';
+import { extendCreditsExpiry, extendTimePass } from '@/lib/entitlement';
 
 export const dynamic = 'force-dynamic';
 
 type RedeemBody = { code?: unknown };
+type CodeRow = {
+  code: string;
+  kind: 'time' | 'credits';
+  duration_days: number;
+  credit_amount: number;
+  status: string;
+};
 
 function normalizeCode(value: unknown): string | null {
   if (typeof value !== 'string') return null;
@@ -10,14 +18,6 @@ function normalizeCode(value: unknown): string | null {
   // 形如 XXXX-XXXX-XXXX，允许 8-64 位大写字母/数字/连字符
   if (!/^[A-Z0-9-]{8,64}$/.test(code)) return null;
   return code;
-}
-
-/** 在现有到期时间基础上顺延天数（续费叠加），返回新的 ISO 时间。 */
-function extendExpiry(current: string | null, days: number): string {
-  const now = Date.now();
-  const base = current ? Date.parse(current) : 0;
-  const start = Number.isFinite(base) && base > now ? base : now;
-  return new Date(start + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -40,8 +40,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = await getDb();
   const row = await db.prepare(
-    'SELECT code, duration_days, status FROM redeem_codes WHERE code = ?',
-  ).bind(code).first<{ code: string; duration_days: number; status: string }>();
+    'SELECT code, kind, duration_days, credit_amount, status FROM redeem_codes WHERE code = ?',
+  ).bind(code).first<CodeRow>();
 
   if (!row) {
     return Response.json({ error: '兑换码不存在' }, { status: 404 });
@@ -52,28 +52,54 @@ export async function POST(request: Request): Promise<Response> {
 
   // 乐观锁：仅当状态仍为 unused 时才标记 used，防止并发重复使用。
   const usedAt = new Date().toISOString();
-  const claim = await db.prepare(
+  await db.prepare(
     "UPDATE redeem_codes SET status = 'used', used_by = ?, used_at = ? WHERE code = ? AND status = 'unused'",
   ).bind(user.id, usedAt, code).run();
 
-  // D1 的 run() 返回值在没有 meta.changes 时无法判断影响行数，
-  // 这里用二次读取确认归属，确保并发下只有一人成功。
+  // 二次读取确认归属，确保并发下只有一人成功。
   const claimed = await db.prepare('SELECT used_by FROM redeem_codes WHERE code = ?')
     .bind(code)
     .first<{ used_by: number | null }>();
   if (!claimed || claimed.used_by !== user.id) {
     return Response.json({ error: '该兑换码已被使用' }, { status: 409 });
   }
-  void claim;
 
-  const newExpiry = extendExpiry(user.expires_at, row.duration_days);
+  // 按码类型发放权益。
+  if (row.kind === 'credits') {
+    const amount = row.credit_amount;
+    if (amount <= 0) {
+      return Response.json({ error: '兑换码额度配置异常' }, { status: 500 });
+    }
+    const newCredits = (user.credits ?? 0) + amount;
+    const newCreditsExpiry = extendCreditsExpiry(user.credits_expires_at);
+    await db.prepare('UPDATE users SET credits = ?, credits_expires_at = ? WHERE id = ?')
+      .bind(newCredits, newCreditsExpiry, user.id)
+      .run();
+    return Response.json(
+      {
+        ok: true,
+        kind: 'credits',
+        creditAmount: amount,
+        credits: newCredits,
+        creditsExpiresAt: newCreditsExpiry,
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
+  // 时间包（7 天不限问）
+  const days = row.duration_days;
+  if (days <= 0) {
+    return Response.json({ error: '兑换码时长配置异常' }, { status: 500 });
+  }
+  const newExpiry = extendTimePass(user.expires_at, days);
   await db.prepare('UPDATE users SET expires_at = ? WHERE id = ?').bind(newExpiry, user.id).run();
-
   return Response.json(
     {
       ok: true,
+      kind: 'time',
       expiresAt: newExpiry,
-      durationDays: row.duration_days,
+      durationDays: days,
     },
     { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );
