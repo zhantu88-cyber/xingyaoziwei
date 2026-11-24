@@ -59,7 +59,8 @@ function makeCode() {
 const codes = new Set();
 while (codes.size < count) codes.add(makeCode());
 
-const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+// 精确到毫秒，避免批量生成多种码时同一秒内互相覆盖文件
+const stamp = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 17);
 const txtName = `codes-${stamp}.txt`;
 const sqlName = `codes-${stamp}.sql`;
 
