@@ -10,6 +10,8 @@ interface Message {
 
 interface ChatPanelProps {
   chart: ZiweiChart;
+  /** 当前选中的流年年份；传入后 AI 能回答"明年/某年如何"这类时间相关问题 */
+  liunianYear?: number;
 }
 
 const PRESET_QUESTIONS = [
@@ -21,7 +23,7 @@ const PRESET_QUESTIONS = [
   '今年的流年运势如何？',
 ];
 
-export default function ChatPanel({ chart }: ChatPanelProps) {
+export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -61,7 +63,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chart, messages: [...messages, userMsg] }),
+        body: JSON.stringify({ chart, messages: [...messages, userMsg], liunianYear }),
       });
 
       const data = await res.json().catch(() => ({})) as {
@@ -101,7 +103,10 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
       <div className="px-4 py-3 flex-shrink-0 flex items-start justify-between gap-2" style={{ borderBottom: '1px solid var(--bdr)' }}>
         <div>
           <h3 className="text-xs font-medium tracking-widest" style={{ color: 'var(--ac)' }}>AI 命盘解读</h3>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--tx-3)' }}>古典紫微斗数 · 智慧解析</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--tx-3)' }}>
+            古典紫微斗数 · 智慧解析
+            {typeof liunianYear === 'number' ? ` · 流年 ${liunianYear}` : ''}
+          </p>
         </div>
         <div className="text-right text-[10px] flex-shrink-0" style={{ color: 'var(--tx-3)' }}>
           {hasTimePass ? (

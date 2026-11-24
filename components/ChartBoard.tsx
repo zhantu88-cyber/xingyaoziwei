@@ -8,6 +8,12 @@ import TimeNav, { type TimeView, getYearStemIndex, buildSiHuaOverlay } from './T
 
 interface ChartBoardProps {
   chart: ZiweiChart;
+  /** 受控：命盘视图（本命/大限/流年）。不传则用内部状态（兼容独立使用）。 */
+  view?: TimeView;
+  /** 受控：流年年份。不传则用内部状态。 */
+  liunianYear?: number;
+  onViewChange?: (view: TimeView) => void;
+  onYearChange?: (year: number) => void;
   onStarSelect?: (star: Star, palace: Palace) => void;
   onPalaceSelect?: (palace: Palace) => void;
   onSiHuaClick?: (starName: string, siHua: string, view: TimeView) => void;
@@ -52,10 +58,24 @@ function getSanFangSiZheng(branch: number): [number, number, number, number] {
 
 const ANIMATION_ORDER = [5, 6, 7, 8, 9, 10, 11, 0, 1, 2, 3, 4];
 
-export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHuaClick }: ChartBoardProps) {
+export default function ChartBoard({
+  chart,
+  view,
+  liunianYear: liunianYearProp,
+  onViewChange,
+  onYearChange,
+  onStarSelect,
+  onPalaceSelect,
+  onSiHuaClick,
+}: ChartBoardProps) {
   const [selectedBranch, setSelectedBranch] = useState<number | null>(null);
-  const [timeView, setTimeView] = useState<TimeView>('mingpan');
-  const [liunianYear, setLiunianYear] = useState<number>(new Date().getFullYear());
+  // 受控优先：父组件传了 view/年份就用父的，保证与页面其它区域（如 AI 问答）共用同一份状态。
+  const [innerView, setInnerView] = useState<TimeView>('mingpan');
+  const [innerYear, setInnerYear] = useState<number>(new Date().getFullYear());
+  const timeView = view ?? innerView;
+  const liunianYear = liunianYearProp ?? innerYear;
+  const handleViewChange = onViewChange ?? setInnerView;
+  const handleYearChange = onYearChange ?? setInnerYear;
 
   const palaceMap: Record<number, Palace> = {};
   chart.palaces.forEach(p => { palaceMap[p.branch] = p; });
@@ -94,8 +114,8 @@ export default function ChartBoard({ chart, onStarSelect, onPalaceSelect, onSiHu
         chart={chart}
         view={timeView}
         liunianYear={liunianYear}
-        onViewChange={setTimeView}
-        onYearChange={setLiunianYear}
+        onViewChange={handleViewChange}
+        onYearChange={handleYearChange}
       />
 
       {/* 命盘标题 */}

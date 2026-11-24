@@ -35,11 +35,12 @@ const MAX_HISTORY = 10; // 最多携带的历史消息条数，防 prompt 膨胀
 const MAX_INPUT_LEN = 500; // 单条用户输入长度上限
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
-type ChatBody = { chart?: ZiweiChart; messages?: ChatMessage[] };
+type ChatBody = { chart?: ZiweiChart; messages?: ChatMessage[]; liunianYear?: number };
 
 const SYSTEM_PROMPT = `你是一位精通传统紫微斗数（古典三合派）的命理师，根据用户提供的命盘解答问题。
 要求：
 - 紧扣命盘，结合宫位、星曜、四化、大限做具体分析，不空泛。
+- 命盘中若附有【流年】信息（流年命宫、流年官禄/财帛/夫妻/迁移宫、流年四化），凡涉及"今年/明年/某某年"的问题，必须优先用该流年的宫位与四化来回答，并指明是该年的流年宫位，不要只泛泛谈大限。
 - 语气温和专业、通俗易懂，条理清晰，篇幅控制在 500 字以内。
 - 涉及健康、财务、法律等只给参考性提示，不做确定性断言。
 - 结尾用一句话提醒"命理解读仅供参考，请理性看待"。
@@ -104,14 +105,25 @@ export async function POST(request: Request): Promise<Response> {
     : 'https://api.deepseek.com';
 
   // 构造 prompt：命盘压缩为中文文本 + 有限历史
-  const chartContext = chartToContext(body.chart);
+  // liunianYear 做合法性校验后传入，用于回答"明年/某年如何"这类时间相关问题。
+  const lnYear =
+    typeof body.liunianYear === 'number' && Number.isInteger(body.liunianYear) &&
+    body.liunianYear >= 1900 && body.liunianYear <= 2200
+      ? body.liunianYear
+      : undefined;
+  const chartContext = chartToContext(body.chart, lnYear);
   const history = messages
     .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
     .slice(-MAX_HISTORY)
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_INPUT_LEN) }));
 
   const aiMessages = [
-    { role: 'system', content: `${SYSTEM_PROMPT}\n\n以下是用户的命盘：\n${chartContext}` },
+    {
+      role: 'system',
+      content:
+        `${SYSTEM_PROMPT}\n\n当前公历年份：${new Date().getFullYear()} 年。` +
+        `\n\n以下是用户的命盘：\n${chartContext}`,
+    },
     ...history,
   ];
 

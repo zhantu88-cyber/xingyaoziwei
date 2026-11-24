@@ -1,6 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
-import { STEMS, SI_HUA_TABLE } from '@/lib/ziwei/constants';
+import { BRANCHES, STEMS, SI_HUA_TABLE } from '@/lib/ziwei/constants';
+import { computeLiunian } from '@/lib/ziwei/liunian';
 import type { ZiweiChart } from '@/lib/ziwei/types';
 
 export type TimeView = 'mingpan' | 'daxian' | 'liunian';
@@ -72,13 +73,15 @@ export default function TimeNav({
   };
 
   const overlayInfo = getOverlayInfo();
+  // 流年视图下，顺带算出流年命宫落在哪一宫，直观告诉用户该年重心所在。
+  const liunianInfo = view === 'liunian' ? computeLiunian(chart, liunianYear) : null;
 
   return (
     <div className="mb-3">
       {/* Tab 行 */}
       <div
         className="flex items-center rounded-xl p-1 gap-1"
-        style={{ background: 'var(--t-surface)', border: '1px solid var(--t-border)' }}
+        style={{ background: 'var(--bg-1)', border: '1px solid var(--bdr)' }}
       >
         {/* 本命 */}
         <TabButton
@@ -101,17 +104,17 @@ export default function TimeNav({
           className="relative flex-1 flex items-center justify-center rounded-lg py-1.5 gap-1 transition-all duration-200"
           style={{
             background: view === 'liunian'
-              ? 'rgba(212,168,67,0.12)'
+              ? 'var(--ac-bg)'
               : 'transparent',
             border: view === 'liunian'
-              ? '1px solid rgba(212,168,67,0.25)'
+              ? '1px solid var(--ac-bdr)'
               : '1px solid transparent',
           }}
         >
           <button
             onClick={() => onViewChange('liunian')}
             className="text-[10px] font-medium flex-1 text-center"
-            style={{ color: view === 'liunian' ? 'var(--t-gold)' : 'var(--t-faint)' }}
+            style={{ color: view === 'liunian' ? 'var(--ac)' : 'var(--tx-3)' }}
           >
             流年
           </button>
@@ -120,13 +123,13 @@ export default function TimeNav({
             <button
               onClick={e => { e.stopPropagation(); onYearChange(liunianYear - 1); if (view !== 'liunian') onViewChange('liunian'); }}
               className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
-              style={{ color: 'var(--t-faint)' }}
+              style={{ color: 'var(--tx-3)' }}
             >
               ‹
             </button>
             <span
               className="text-[10px] font-mono min-w-[28px] text-center cursor-pointer"
-              style={{ color: view === 'liunian' ? 'var(--t-gold)' : 'var(--t-faint)' }}
+              style={{ color: view === 'liunian' ? 'var(--ac)' : 'var(--tx-3)' }}
               onClick={() => onViewChange('liunian')}
             >
               {liunianYear}
@@ -134,7 +137,7 @@ export default function TimeNav({
             <button
               onClick={e => { e.stopPropagation(); onYearChange(liunianYear + 1); if (view !== 'liunian') onViewChange('liunian'); }}
               className="text-[9px] w-4 h-4 flex items-center justify-center rounded"
-              style={{ color: 'var(--t-faint)' }}
+              style={{ color: 'var(--tx-3)' }}
             >
               ›
             </button>
@@ -150,9 +153,14 @@ export default function TimeNav({
           transition={{ duration: 0.2 }}
           className="flex items-center gap-2 mt-1.5 px-1 flex-wrap"
         >
-          <span className="text-[9px]" style={{ color: 'var(--t-faint)' }}>
+          <span className="text-[9px]" style={{ color: 'var(--tx-3)' }}>
             {view === 'daxian' ? '大限' : `${liunianYear}`}·{overlayInfo.stemName}年四化：
           </span>
+          {liunianInfo && (
+            <span className="text-[9px]" style={{ color: 'var(--ac)' }}>
+              流年命宫：{BRANCHES[liunianInfo.mingGongBranch] ?? ''}宫（本命{liunianInfo.mingGongNatalName}）
+            </span>
+          )}
           {(['禄', '权', '科', '忌'] as const).map(sh => {
             const starName = Object.keys(overlayInfo.overlay).find(k => overlayInfo.overlay[k] === sh);
             if (!starName) return null;
@@ -182,9 +190,9 @@ function TabButton({
       onClick={onClick}
       className="flex-1 py-1.5 text-[10px] font-medium rounded-lg transition-all duration-200"
       style={{
-        background: active ? 'rgba(212,168,67,0.12)' : 'transparent',
-        color: active ? 'var(--t-gold)' : 'var(--t-faint)',
-        border: active ? '1px solid rgba(212,168,67,0.25)' : '1px solid transparent',
+        background: active ? 'var(--ac-bg)' : 'transparent',
+        color: active ? 'var(--ac)' : 'var(--tx-3)',
+        border: active ? '1px solid var(--ac-bdr)' : '1px solid transparent',
       }}
     >
       {children}
