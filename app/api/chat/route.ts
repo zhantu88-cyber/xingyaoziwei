@@ -96,7 +96,8 @@ export async function POST(request: Request): Promise<Response> {
       { status: 503 },
     );
   }
-  const model = typeof env.DEEPSEEK_MODEL === 'string' && env.DEEPSEEK_MODEL ? env.DEEPSEEK_MODEL : 'deepseek-chat';
+  // 默认用 deepseek-flash（便宜快速）；可用 DEEPSEEK_MODEL secret 覆盖为 deepseek-v4-pro 等。
+  const model = typeof env.DEEPSEEK_MODEL === 'string' && env.DEEPSEEK_MODEL ? env.DEEPSEEK_MODEL : 'deepseek-flash';
   const apiBase = typeof env.DEEPSEEK_API_BASE === 'string' && env.DEEPSEEK_API_BASE
     ? env.DEEPSEEK_API_BASE
     : 'https://api.deepseek.com';
@@ -119,7 +120,15 @@ export async function POST(request: Request): Promise<Response> {
     aiRes = await fetch(`${apiBase}/chat/completions`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages: aiMessages, max_tokens: MAX_TOKENS, temperature: 0.7, stream: false }),
+      body: JSON.stringify({
+        model,
+        messages: aiMessages,
+        max_tokens: MAX_TOKENS,
+        temperature: 0.7,
+        stream: false,
+        // 新模型 thinking 默认开启，命盘解读不需要长推理，显式关闭以省钱提速。
+        thinking: { type: 'disabled' },
+      }),
     });
   } catch {
     return Response.json({ error: '无法连接 AI 服务，请稍后重试。' }, { status: 502 });
