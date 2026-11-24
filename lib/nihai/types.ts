@@ -1,5 +1,5 @@
 /**
- * 倪海厦 天纪 / 地纪 / 人纪 — 共享类型定义
+ * 先贤 天纪 / 地纪 / 人纪 — 共享类型定义
  */
 
 /** 三纪分类 */
@@ -47,7 +47,7 @@ export interface NiChapter {
   description: string;
   /** 核心要点 */
   keyPoints: string[];
-  /** 倪师语录 */
+  /** 先贤语录 */
   quotes?: string[];
   /** 排序 */
   order: number;
@@ -65,7 +65,7 @@ export interface Hexagram {
   lower: string;
   /** 卦辞要点 */
   meaning: string;
-  /** 倪师讲解要点 */
+  /** 先贤讲解要点 */
   niInterpretation: string;
   /** 断事要诀 */
   divination: string;
@@ -141,7 +141,7 @@ export interface ClassicFormula {
   composition: string;
   /** 主治 */
   indication: string;
-  /** 倪师用法要点 */
+  /** 先贤用法要点 */
   niUsage?: string;
 }
 

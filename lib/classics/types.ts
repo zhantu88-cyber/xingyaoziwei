@@ -14,7 +14,7 @@ export interface Paragraph {
   text: string;
   /** 现代翻译（可选，未来填充） */
   translation?: string;
-  /** 倪师注解（可选，标注来源） */
+  /** 古籍注解（可选，标注来源） */
   niNote?: string;
 }
 

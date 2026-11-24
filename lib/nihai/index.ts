@@ -1,7 +1,7 @@
 /**
- * 倪海厦 天纪 / 地纪 / 人纪 — 统一导出
+ * 先贤 天纪 / 地纪 / 人纪 — 统一导出
  *
- * 倪海厦（1954-2012），美国汉唐中医学院创办人，
+ * 先贤（1954-2012），美国汉唐中医学院创办人，
  * 当代少见的「命、相、卜、山、医」五术兼备之旷世奇人。
  *
  * 三纪体系：
@@ -15,10 +15,10 @@ export { TIANJI_MODULES, HEXAGRAMS, FENGSHUI_ENTRIES, TIANJI_EPISODES, TIANJI_QU
 export { RENJI_MODULES, ACU_EXPERIENCES, TRANS_NEEDLING, HANTANG_FORMULAS, CLASSIC_FORMULAS, RENJI_STATS } from './renji';
 export { DIJI_MODULES, DIJI_STATS } from './diji';
 
-/** 倪海厦完整传记 */
+/** 先贤完整传记 */
 export const NI_HAIXIA_BIO = {
-  name: '倪海厦',
-  nameVariant: '倪海夏',
+  name: '先贤',
+  nameVariant: '先贤海夏',
   alias: '梵宇龙',
   birth: '1954年1月1日',
   death: '2012年1月31日',
@@ -115,7 +115,7 @@ export const NI_HAIXIA_BIO = {
       name: '地纪',
       meaning: '下知地理',
       content: '国家地理志（未完成）',
-      status: '倪师未竟之业',
+      status: '先贤未竟之业',
       note: '原计划60岁后著述，2012年辞世',
       startYear: 2007,
       existingContent: '天纪课程中堪舆学部分 + 后人整理遗稿',

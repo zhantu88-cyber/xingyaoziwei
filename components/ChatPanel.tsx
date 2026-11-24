@@ -101,7 +101,7 @@ export default function ChatPanel({ chart }: ChatPanelProps) {
       <div className="px-4 py-3 flex-shrink-0 flex items-start justify-between gap-2" style={{ borderBottom: '1px solid var(--t-border)' }}>
         <div>
           <h3 className="text-xs font-medium tracking-widest" style={{ color: 'var(--t-gold)' }}>AI 命盘解读</h3>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-faint)' }}>倪海厦正宗紫微斗数 · 智慧解析</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--t-faint)' }}>古典紫微斗数 · 智慧解析</p>
         </div>
         <div className="text-right text-[10px] flex-shrink-0" style={{ color: 'var(--t-faint)' }}>
           {hasTimePass ? (

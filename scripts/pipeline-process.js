@@ -32,8 +32,8 @@ const UNSAFE_FILENAME_CHARS = /[\\/:*?"<>|\x00-\x1f]/g;
 // Compliance-only redaction: the 13 Markdown texts are kept verbatim (all
 // headings, bold, lists, quotations, ancient-text derivations included).
 const SENSITIVE_TERMS = [
-  '倪海厦', '倪海廈', '倪师', '倪師',
-  '倪老师', '倪老師', '倪医师', '倪醫師', '倪博士',
+  '\u502a\u6d77\u53a6', '\u502a\u6d77\u5ed6', '\u502a\u5e08', '\u502a\u5eab',
+  '\u502a\u8001\u5e08', '\u502a\u8001\u5eab', '\u502a\u533b\u5e08', '\u502a\u91ab\u5eab', '\u502a\u535a\u58eb',
 ];
 const SENSITIVE_PATTERN = new RegExp(SENSITIVE_TERMS.join('|'), 'g');
 
