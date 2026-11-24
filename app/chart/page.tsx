@@ -3,6 +3,7 @@ import { useState } from 'react';
 import BirthForm from '@/components/BirthForm';
 import ChartBoard from '@/components/ChartBoard';
 import InsightPanel from '@/components/InsightPanel';
+import ChatPanel from '@/components/ChatPanel';
 import TimeNav, { type TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
@@ -37,6 +38,8 @@ export default function ChartPage() {
   const [selectedPalace, setSelectedPalace] = useState<Palace | null>(null);
   const [view, setView] = useState<TimeView>('mingpan');
   const [liunianYear, setLiunianYear] = useState(() => new Date().getFullYear());
+  // 右栏切换：命盘解读（静态）/ AI 问答（付费，按额度）
+  const [rightTab, setRightTab] = useState<'reading' | 'chat'>('reading');
 
   const gender = normalizeGender(chart?.birthInfo.gender);
   const readingKey = chart && gender
@@ -85,7 +88,37 @@ export default function ChartPage() {
         }}
       >
         <ChartBoard chart={chart} onPalaceSelect={setSelectedPalace} />
-        <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} />
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          {/* 右栏切换：静态解读 / AI 问答。两者都保持挂载，切换不丢对话记录 */}
+          <div className="tab-container" style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
+            <button
+              type="button"
+              className={`tab-item ${rightTab === 'reading' ? 'active' : ''}`}
+              onClick={() => setRightTab('reading')}
+            >
+              命盘解读
+            </button>
+            <button
+              type="button"
+              className={`tab-item ${rightTab === 'chat' ? 'active' : ''}`}
+              onClick={() => setRightTab('chat')}
+            >
+              AI 问答
+            </button>
+          </div>
+          <div style={{ display: rightTab === 'reading' ? 'block' : 'none' }}>
+            <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} />
+          </div>
+          <div
+            style={{
+              display: rightTab === 'chat' ? 'block' : 'none',
+              height: 'min(72vh, 720px)',
+              minHeight: 520,
+            }}
+          >
+            <ChatPanel chart={chart} />
+          </div>
+        </div>
       </div>
     </main>
   );
