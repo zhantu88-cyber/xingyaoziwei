@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import SiteNav from '@/components/SiteNav';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SITE_URL } from '@/lib/site';
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" data-theme="light">
       <body className="min-h-screen">
         <ThemeProvider>
+          <SiteNav />
           {children}
         </ThemeProvider>
         <footer className="px-5 py-5 text-center text-[10px] leading-relaxed" style={{ color: '#9ca3af' }}>
