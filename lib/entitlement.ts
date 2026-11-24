@@ -102,16 +102,13 @@ export async function consumeAndLog(
 
   const dailyCount = await getDailyCount(db, user.id, day);
 
-  // 首次触及告警阈值时置位，之后当日不再重复告警。
-  let shouldAlert = false;
-  if (dailyCount >= ALERT_THRESHOLD) {
-    await db.prepare('UPDATE usage_daily SET alerted = 1 WHERE user_id = ? AND day = ? AND alerted = 0')
+  // 恰好在达到告警阈值的那一次触发告警（每日一次，之后不再打扰）。
+  // 用确定性等值判断，避免依赖 D1 run() 的 changes 元数据。
+  const shouldAlert = dailyCount === ALERT_THRESHOLD;
+  if (shouldAlert) {
+    await db.prepare('UPDATE usage_daily SET alerted = 1 WHERE user_id = ? AND day = ?')
       .bind(user.id, day)
       .run();
-    const flagged = await db.prepare('SELECT alerted FROM usage_daily WHERE user_id = ? AND day = ?')
-      .bind(user.id, day)
-      .first<{ alerted: number }>();
-    shouldAlert = dailyCount === ALERT_THRESHOLD || (flagged?.alerted === 1 && dailyCount === ALERT_THRESHOLD);
   }
 
   return { dailyCount, shouldAlert };
