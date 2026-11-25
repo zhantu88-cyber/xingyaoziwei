@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BirthForm, { type BirthFormState } from '@/components/BirthForm';
 import { formToBirthInfo } from '@/lib/ziwei/share';
@@ -61,11 +61,26 @@ export default function HemingPage() {
   const [analysis, setAnalysis] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [question, setQuestion] = useState('');
-  const [analysisError, setAnalysisError] = useState(false);
-  // 开源版不含 /api/heming：接口 404 时单独说明，而不是让用户反复重试
-  const [apiMissing, setApiMissing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [needLogin, setNeedLogin] = useState(false);
+  const [needRedeem, setNeedRedeem] = useState(false);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [hasTimePass, setHasTimePass] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const analysisRef = useRef<HTMLDivElement>(null);
+
+  // 加载当前额度/权益（前端只读 /api/me，不用 localStorage）
+  useEffect(() => {
+    fetch('/api/me', { cache: 'no-store' })
+      .then(r => r.json())
+      .then((d: { authenticated?: boolean; user?: { credits?: number; hasTimePass?: boolean } | null }) => {
+        if (d.authenticated && d.user) {
+          setCredits(d.user.credits ?? 0);
+          setHasTimePass(!!d.user.hasTimePass);
+        }
+      })
+      .catch(() => { /* 未登录或网络错误时忽略 */ });
+  }, []);
 
   // ─── 起盘（单次调用，返回 chart 给统一流程使用）──────────
   // 开源版不含后端 /api/generate：直接用本仓库的排盘引擎在浏览器里起盘
@@ -84,13 +99,15 @@ export default function HemingPage() {
   // ─── 统一入口：起盘 + 合盘分析 ─────────────────────────────
   const runAnalysis = useCallback(async (q?: string) => {
     setFormError(null);
+    setAnalysisError(null);
+    setNeedLogin(false);
+    setNeedRedeem(false);
     if (!isFormReady(formA) || !isFormReady(formB)) {
       setFormError('请先填写双方完整出生信息');
       return;
     }
     setAnalyzing(true);
-    setAnalysis('');
-    setAnalysisError(false);
+    // 追问时保留上一份分析，成功后才替换，失败不至于清空已读内容。
 
     try {
       // 每次按当前表单起盘，避免编辑出生信息后复用旧盘。
@@ -99,8 +116,7 @@ export default function HemingPage() {
         generateChart(formToBirthInfo(formB!)),
       ]);
       if (!cA || !cB) {
-        setAnalysisError(true);
-        setAnalyzing(false);
+        setAnalysisError('起盘失败，请检查双方出生信息是否完整。');
         return;
       }
       setChartA(cA);
@@ -111,36 +127,23 @@ export default function HemingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chartA: cA, chartB: cB, question: q ?? undefined }),
       });
-      if (res.status === 404) { setApiMissing(true); throw new Error('api-missing'); }
-      if (!res.ok || !res.body) throw new Error();
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let text = '';
-      let pendingLine = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        pendingLine += decoder.decode(value, { stream: true });
-        const lines = pendingLine.split('\n');
-        pendingLine = lines.pop() ?? '';
-        for (const rawLine of lines) {
-          const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6);
-          if (data === '[DONE]') break;
-          try {
-            const delta = JSON.parse(data).delta?.text ?? '';
-            text += delta;
-            setAnalysis(text);
-          } catch { /* skip */ }
-        }
+      const data = (await res.json().catch(() => ({}))) as {
+        text?: string; error?: string; needLogin?: boolean; needRedeem?: boolean;
+        credits?: number | null; hasTimePass?: boolean;
+      };
+      if (!res.ok) {
+        setNeedLogin(!!data.needLogin);
+        setNeedRedeem(!!data.needRedeem);
+        throw new Error(data.error ?? '分析暂时不可用，请重试。');
       }
+
+      setAnalysis(data.text ?? '');
+      if (typeof data.credits === 'number') setCredits(data.credits);
+      if (typeof data.hasTimePass === 'boolean') setHasTimePass(data.hasTimePass);
       // scroll to analysis
       setTimeout(() => analysisRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-    } catch {
-      setAnalysisError(true);
+    } catch (e) {
+      setAnalysisError(e instanceof Error ? e.message : '分析暂时不可用，请重试。');
     } finally {
       setAnalyzing(false);
     }
@@ -235,6 +238,13 @@ export default function HemingPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: (analysis || analyzing) ? '20px' : '24px' }}>
             <span style={{ color: 'var(--ac)', opacity: 0.6 }}>◉</span>
             <span style={{ fontSize: '11px', letterSpacing: '0.3em', color: 'var(--tx-3)' }}>合盘分析 · HEMING</span>
+            <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--tx-3)', whiteSpace: 'nowrap' }}>
+              {hasTimePass ? (
+                <span style={{ color: 'var(--ac)' }}>不限问 · 时间包</span>
+              ) : credits !== null ? (
+                <>剩余 <span style={{ color: 'var(--ac)' }}>{credits}</span> 次</>
+              ) : null}
+            </span>
           </div>
 
           {/* 状态分支 */}
@@ -281,10 +291,18 @@ export default function HemingPage() {
           {analysis && <AiContent text={analysis} streaming={analyzing} />}
 
           {analysisError && (
-            <div style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--bdr)', background: 'var(--bg-card)', fontSize: '13px', color: 'var(--tx-2)', marginTop: '12px' }}>
-              {apiMissing
-                ? '开源版不含合盘 AI 分析接口（/api/heming），需要你自己实现后才能用。两人的命盘可以分别到「排盘」页（/chart）查看。'
-                : '分析暂时不可用，请重试。'}
+            <div style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid var(--bdr)', background: 'var(--bg-card)', fontSize: '13px', color: 'var(--tx-2)', marginTop: '12px', lineHeight: 1.7 }}>
+              {analysisError}
+              {needLogin && (
+                <div style={{ marginTop: '8px' }}>
+                  <a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>前往「账号与兑换」登录 / 注册</a>
+                </div>
+              )}
+              {needRedeem && (
+                <div style={{ marginTop: '8px' }}>
+                  <a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>前往「账号与兑换」充值额度</a>
+                </div>
+              )}
             </div>
           )}
         </div>
