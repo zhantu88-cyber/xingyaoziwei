@@ -96,12 +96,12 @@ export default function PayPage() {
         {/* 收款码 + 流程 */}
         <div className="card" style={{ padding: '28px 24px', display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 28, alignItems: 'start' }} data-qr-block>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 12, letterSpacing: '0.2em', color: 'var(--tx-3)', marginBottom: 12 }}>扫码付款</div>
+            <div style={{ fontSize: 12, letterSpacing: '0.2em', color: 'var(--tx-3)', marginBottom: 12 }}>支付宝扫码付款</div>
             {!qrError ? (
-              // 站长把自己的收款码图片放到 public/receipt-qr.png 即自动显示
+              // 站长把自己的收款码图片放到 public/receipt-qr.jpg 即自动显示
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src="/receipt-qr.png"
+                src="/receipt-qr.jpg"
                 alt="收款码"
                 onError={() => setQrError(true)}
                 style={{ width: '100%', maxWidth: 240, borderRadius: 12, border: '1px solid var(--bdr)' }}
@@ -113,7 +113,7 @@ export default function PayPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7, padding: 16,
               }}>
-                收款码待上传<br />（站长放入 public/receipt-qr.png）
+                收款码待上传<br />（站长放入 public/receipt-qr.jpg）
               </div>
             )}
           </div>
