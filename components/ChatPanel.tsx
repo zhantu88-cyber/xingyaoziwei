@@ -74,7 +74,7 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
       if (!res.ok) {
         let msg = data.error ?? '解读失败，请稍后重试。';
         if (data.needLogin) msg = '请先登录后再使用 AI 问答——注册即免费送 1 次，无需兑换码。点击右上角「登录领免费次数」。';
-        if (data.needRedeem) msg = data.error ?? '暂无可用额度，请先到「账号与兑换」页面输入兑换码。';
+        if (data.needRedeem) msg = data.error ?? '免费次数已用完。可前往「购买次数」页购买，或使用兑换码。';
         throw new Error(msg);
       }
 
@@ -112,7 +112,11 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
           {hasTimePass ? (
             <span style={{ color: 'var(--ac)' }}>不限问 · 时间包</span>
           ) : credits !== null ? (
-            <span>剩余 <span style={{ color: 'var(--ac)' }}>{credits}</span> 次</span>
+            credits > 0 ? (
+              <span>剩余 <span style={{ color: 'var(--ac)' }}>{credits}</span> 次</span>
+            ) : (
+              <a href="/pay" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>额度用完 · 去购买</a>
+            )
           ) : (
             <a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>登录领免费次数</a>
           )}

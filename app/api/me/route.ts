@@ -23,6 +23,8 @@ export async function GET(request: Request): Promise<Response> {
             // 兼容旧字段：任一权益有效即视为已开通
             isPaid: hasTimePass(user) || availableCredits(user) > 0,
             freeUsed: user.free_used,
+            // 管理员可进 /admin 后台一键充值
+            isAdmin: user.is_admin === 1,
           }
         : null,
     },

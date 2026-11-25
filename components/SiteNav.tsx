@@ -9,6 +9,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/', label: '首页', active: (p) => p === '/' },
   { href: '/chart', label: '起盘', active: (p) => p.startsWith('/chart') },
   { href: '/heming', label: '合盘', active: (p) => p.startsWith('/heming') },
+  { href: '/pay', label: '购买次数', active: (p) => p.startsWith('/pay') },
   { href: '/redeem', label: '账号与兑换', active: (p) => p.startsWith('/redeem') },
 ];
 

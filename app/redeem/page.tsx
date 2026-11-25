@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Turnstile from '@/components/Turnstile';
+import { PACKAGES } from '@/lib/packages';
 
 type Me = {
   authenticated: boolean;
@@ -19,13 +20,6 @@ type Me = {
 };
 
 type Mode = 'login' | 'signup';
-
-const PLANS = [
-  { name: '体验包', amount: '3 次', note: '低门槛试一试' },
-  { name: '常用包', amount: '10 次', note: '主力推荐' },
-  { name: '深度包', amount: '30 次', note: '重度用户' },
-  { name: '7 天不限问', amount: '7 天', note: '集中畅问' },
-];
 
 export default function RedeemPage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -233,16 +227,19 @@ export default function RedeemPage() {
           <div style={{ ...cardStyle, borderRadius: 12, padding: 20 }}>
             <h2 style={{ fontSize: 15, marginBottom: 12 }}>套餐档位</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {PLANS.map((p) => (
-                <div key={p.name} style={{ border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 12 }}>
+              {PACKAGES.map((p) => (
+                <div key={p.id} style={{ border: '1px solid rgba(0,0,0,0.1)', borderRadius: 10, padding: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</div>
-                  <div style={{ fontSize: 16, color: '#8a6a1f', margin: '4px 0' }}>{p.amount}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{p.note}</div>
+                  <div style={{ fontSize: 16, color: '#8a6a1f', margin: '4px 0' }}>¥{p.price}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>{p.desc}</div>
                 </div>
               ))}
             </div>
             <p style={{ fontSize: 11, color: '#888', marginTop: 12, lineHeight: 1.6 }}>
-              次数包兑换后 180 天内有效，多次购买自动叠加顺延；7 天不限问期间不消耗次数。
+              次数包 180 天内有效，多次购买自动叠加顺延；7 天不限问期间不消耗次数。
+            </p>
+            <p style={{ fontSize: 12, marginTop: 10 }}>
+              没有兑换码？<a href="/pay" style={{ color: '#8a6a1f', textDecoration: 'underline' }}>直接购买（扫码付款，站长开通）</a>
             </p>
           </div>
         </>

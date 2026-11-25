@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS users (
   last_chat_at TEXT,
   signup_ip TEXT,
   free_used INTEGER NOT NULL DEFAULT 0,
+  -- 管理员标记：1 = 可进 /admin 后台一键充值；普通用户为 0。
+  is_admin INTEGER NOT NULL DEFAULT 0,
   created_at TEXT
 );
 -- 注册 IP 与时间戳的索引：支撑"同 IP 24h 内注册数"统计与按 IP 限免费额度。
@@ -71,3 +73,21 @@ CREATE TABLE IF NOT EXISTS usage_daily (
   alerted INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, day)
 );
+
+-- 后台充值流水：管理员在 /admin 给用户手动充值（收款后）时记录，便于对账与追溯。
+-- kind = credits（次数包）/ time（时间包）。price 为成交价（元），仅作账目参考。
+CREATE TABLE IF NOT EXISTS recharge_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  admin_id INTEGER NOT NULL,
+  admin_name TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  username TEXT NOT NULL,
+  package_id TEXT NOT NULL,
+  package_name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  credits INTEGER,
+  days INTEGER,
+  price REAL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recharge_logs_user ON recharge_logs(user_id, created_at);

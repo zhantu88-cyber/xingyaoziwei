@@ -300,7 +300,7 @@ export default function HemingPage() {
               )}
               {needRedeem && (
                 <div style={{ marginTop: '8px' }}>
-                  <a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>前往「账号与兑换」充值额度</a>
+                  <a href="/pay" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>前往「购买次数」页购买</a>
                 </div>
               )}
             </div>

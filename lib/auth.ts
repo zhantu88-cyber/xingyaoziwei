@@ -205,10 +205,11 @@ export type UserRow = {
   credits_expires_at: string | null;
   last_chat_at: string | null;
   free_used: number;
+  is_admin: number;
   created_at: string | null;
 };
 
-const USER_COLUMNS = 'id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, created_at';
+const USER_COLUMNS = 'id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, is_admin, created_at';
 
 /** 读取当前登录用户，未登录返回 null。 */
 export async function getCurrentUser(request: Request): Promise<UserRow | null> {
