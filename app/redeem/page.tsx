@@ -26,6 +26,7 @@ export default function RedeemPage() {
   const [mode, setMode] = useState<Mode>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [code, setCode] = useState('');
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,6 +44,10 @@ export default function RedeemPage() {
   useEffect(() => { void loadMe(); }, [loadMe]);
 
   const handleAuth = async () => {
+    if (mode === 'signup' && password !== passwordConfirm) {
+      setMsg({ type: 'err', text: '两次输入的密码不一致' });
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -58,6 +63,7 @@ export default function RedeemPage() {
         return;
       }
       setPassword('');
+      setPasswordConfirm('');
       if (mode === 'login') {
         setMsg({ type: 'ok', text: '登录成功' });
       } else if (data.freeCreditGranted === false) {
@@ -160,7 +166,7 @@ export default function RedeemPage() {
             {(['login', 'signup'] as Mode[]).map((m) => (
               <button
                 key={m} type="button"
-                onClick={() => { setMode(m); setMsg(null); }}
+                onClick={() => { setMode(m); setMsg(null); setPasswordConfirm(''); }}
                 style={{
                   flex: 1, padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 13,
                   border: '1px solid rgba(0,0,0,0.12)',
@@ -179,6 +185,12 @@ export default function RedeemPage() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               onKeyDown={(e) => { if (e.key === 'Enter') void handleAuth(); }} />
+            {mode === 'signup' && (
+              <input style={inputStyle} type="password" placeholder="再次输入密码确认" value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                autoComplete="new-password"
+                onKeyDown={(e) => { if (e.key === 'Enter') void handleAuth(); }} />
+            )}
             <Turnstile onVerify={setTurnstileToken} />
             <button type="button" style={btnStyle} disabled={busy} onClick={() => void handleAuth()}>
               {mode === 'login' ? '登录' : '注册并登录'}
