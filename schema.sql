@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS users (
   free_used INTEGER NOT NULL DEFAULT 0,
   -- 管理员标记：1 = 可进 /admin 后台一键充值；普通用户为 0。
   is_admin INTEGER NOT NULL DEFAULT 0,
+  -- 找回密码用；老用户为 NULL，可登录后在账号页补绑。
+  email TEXT,
   created_at TEXT
 );
 -- 注册 IP 与时间戳的索引：支撑"同 IP 24h 内注册数"统计与按 IP 限免费额度。
@@ -91,3 +93,14 @@ CREATE TABLE IF NOT EXISTS recharge_logs (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_recharge_logs_user ON recharge_logs(user_id, created_at);
+
+-- 找回密码：用户邮箱 + 重置令牌（令牌只存哈希）。
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  used INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_password_resets_hash ON password_resets(token_hash);

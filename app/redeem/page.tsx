@@ -16,6 +16,8 @@ type Me = {
     creditsExpiresAt: string | null;
     isPaid: boolean;
     freeUsed: number;
+    isAdmin?: boolean;
+    email?: string | null;
   };
 };
 
@@ -27,7 +29,15 @@ export default function RedeemPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  // 账号安全（登录后）：改密码 / 绑定邮箱
+  const [curPwd, setCurPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [newPwdConfirm, setNewPwdConfirm] = useState('');
+  const [bindEmail, setBindEmail] = useState('');
+  const [bindPwd, setBindPwd] = useState('');
+  const [acctMsg, setAcctMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -55,7 +65,9 @@ export default function RedeemPage() {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, turnstileToken }),
+        body: JSON.stringify(mode === 'login'
+          ? { username, password, turnstileToken }
+          : { username, password, email, turnstileToken }),
       });
       const data = (await res.json()) as { error?: string; freeCreditGranted?: boolean };
       if (!res.ok) {
@@ -124,6 +136,51 @@ export default function RedeemPage() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPwd !== newPwdConfirm) {
+      setAcctMsg({ type: 'err', text: '两次输入的新密码不一致' });
+      return;
+    }
+    setAcctMsg(null);
+    try {
+      const res = await fetch('/api/account/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: curPwd, newPassword: newPwd }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setAcctMsg({ type: 'err', text: data.error ?? '修改失败' });
+        return;
+      }
+      setAcctMsg({ type: 'ok', text: data.message ?? '密码已修改' });
+      setCurPwd(''); setNewPwd(''); setNewPwdConfirm('');
+    } catch {
+      setAcctMsg({ type: 'err', text: '网络错误，请稍后重试' });
+    }
+  };
+
+  const handleBindEmail = async () => {
+    setAcctMsg(null);
+    try {
+      const res = await fetch('/api/account/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: bindEmail, password: bindPwd }),
+      });
+      const data = (await res.json()) as { error?: string; message?: string };
+      if (!res.ok) {
+        setAcctMsg({ type: 'err', text: data.error ?? '绑定失败' });
+        return;
+      }
+      setAcctMsg({ type: 'ok', text: data.message ?? '邮箱已绑定' });
+      setBindEmail(''); setBindPwd('');
+      await loadMe();
+    } catch {
+      setAcctMsg({ type: 'err', text: '网络错误，请稍后重试' });
+    }
+  };
+
   const cardStyle: React.CSSProperties = {
     background: 'var(--bg-card, #fff)',
     border: '1px solid rgba(0,0,0,0.08)',
@@ -181,6 +238,10 @@ export default function RedeemPage() {
           <div style={{ display: 'grid', gap: 12 }}>
             <input style={inputStyle} placeholder="用户名" value={username}
               onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+            {mode === 'signup' && (
+              <input style={inputStyle} type="email" placeholder="邮箱（用于找回密码）" value={email}
+                onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            )}
             <input style={inputStyle} type="password" placeholder="密码（至少 8 位）" value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -195,6 +256,11 @@ export default function RedeemPage() {
             <button type="button" style={btnStyle} disabled={busy} onClick={() => void handleAuth()}>
               {mode === 'login' ? '登录' : '注册并登录'}
             </button>
+            {mode === 'login' && (
+              <div style={{ fontSize: 12, color: '#888', textAlign: 'right' }}>
+                <a href="/forgot" style={{ color: '#8a6a1f' }}>忘记密码？</a>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -224,6 +290,47 @@ export default function RedeemPage() {
               style={{ marginTop: 12, fontSize: 12, background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', padding: 0 }}>
               退出登录
             </button>
+          </div>
+
+          <div style={{ ...cardStyle, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+            <h2 style={{ fontSize: 15, marginBottom: 12 }}>账号安全</h2>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+              绑定邮箱：
+              {u.email
+                ? <span style={{ color: 'var(--tx-1, inherit)' }}>{u.email}</span>
+                : <span style={{ color: '#b45309' }}>未绑定（忘记密码将无法自助找回）</span>}
+            </div>
+            <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+              <input style={inputStyle} type="email" placeholder={u.email ? '更换邮箱' : '绑定邮箱（用于找回密码）'}
+                value={bindEmail} onChange={(e) => setBindEmail(e.target.value)} autoComplete="email" />
+              <input style={inputStyle} type="password" placeholder="输入密码确认" value={bindPwd}
+                onChange={(e) => setBindPwd(e.target.value)} autoComplete="current-password" />
+              <button type="button" style={{ ...btnStyle, background: '#6b7280' }} disabled={busy || !bindEmail || !bindPwd}
+                onClick={() => void handleBindEmail()}>
+                {u.email ? '更换邮箱' : '绑定邮箱'}
+              </button>
+            </div>
+            <div style={{ display: 'grid', gap: 10 }}>
+              <input style={inputStyle} type="password" placeholder="当前密码" value={curPwd}
+                onChange={(e) => setCurPwd(e.target.value)} autoComplete="current-password" />
+              <input style={inputStyle} type="password" placeholder="新密码（至少 8 位）" value={newPwd}
+                onChange={(e) => setNewPwd(e.target.value)} autoComplete="new-password" />
+              <input style={inputStyle} type="password" placeholder="再次输入新密码" value={newPwdConfirm}
+                onChange={(e) => setNewPwdConfirm(e.target.value)} autoComplete="new-password" />
+              <button type="button" style={{ ...btnStyle, background: '#6b7280' }} disabled={busy || !curPwd || !newPwd || !newPwdConfirm}
+                onClick={() => void handleChangePassword()}>
+                修改密码
+              </button>
+            </div>
+            {acctMsg && (
+              <div style={{
+                marginTop: 12, padding: '10px 14px', borderRadius: 8, fontSize: 13, lineHeight: 1.7,
+                background: acctMsg.type === 'ok' ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.08)',
+                color: acctMsg.type === 'ok' ? '#166534' : '#b91c1c',
+              }}>
+                {acctMsg.text}
+              </div>
+            )}
           </div>
 
           <div style={{ ...cardStyle, borderRadius: 12, padding: 20, marginBottom: 16 }}>

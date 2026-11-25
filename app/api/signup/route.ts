@@ -19,6 +19,7 @@ export const dynamic = 'force-dynamic';
 type SignupBody = {
   username?: unknown;
   password?: unknown;
+  email?: unknown;
   turnstileToken?: unknown;
 };
 
@@ -28,6 +29,13 @@ function normalizeUsername(value: unknown): string | null {
   // 3-32 位：字母、数字、下划线
   if (!/^[a-z0-9_]{3,32}$/.test(name)) return null;
   return name;
+}
+
+function normalizeEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const email = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 128) return null;
+  return email;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -45,6 +53,10 @@ export async function POST(request: Request): Promise<Response> {
   if (typeof body.password !== 'string' || body.password.length < 8 || body.password.length > 128) {
     return Response.json({ error: '密码长度需为 8-128 位' }, { status: 400 });
   }
+  const email = normalizeEmail(body.email);
+  if (!email) {
+    return Response.json({ error: '请填写有效的邮箱地址（用于找回密码）' }, { status: 400 });
+  }
 
   const turnstile = await verifyTurnstile(
     typeof body.turnstileToken === 'string' ? body.turnstileToken : null,
@@ -60,6 +72,12 @@ export async function POST(request: Request): Promise<Response> {
   if (existing) {
     return Response.json({ error: '用户名已被占用' }, { status: 409 });
   }
+  const emailTaken = await db.prepare('SELECT id FROM users WHERE email = ?')
+    .bind(email)
+    .first<{ id: number }>();
+  if (emailTaken) {
+    return Response.json({ error: '该邮箱已被注册' }, { status: 409 });
+  }
 
   // 防养号：按注册 IP 统计近 24h 注册数，超阈值则注册成功但不送免费额度。
   const ip = getClientIp(request);
@@ -74,10 +92,10 @@ export async function POST(request: Request): Promise<Response> {
   const initialCredits = grantFree ? 1 : 0;
 
   await db.prepare(
-    "INSERT INTO users (username, password_hash, salt, expires_at, credits, credits_expires_at, free_used, signup_ip, created_at) VALUES (?, ?, ?, NULL, ?, NULL, 0, ?, ?)",
-  ).bind(username, passwordHash, salt, initialCredits, ip, createdAt).run();
+    "INSERT INTO users (username, password_hash, salt, expires_at, credits, credits_expires_at, free_used, signup_ip, email, created_at) VALUES (?, ?, ?, NULL, ?, NULL, 0, ?, ?, ?)",
+  ).bind(username, passwordHash, salt, initialCredits, ip, email, createdAt).run();
 
-  const row = await db.prepare('SELECT id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, created_at FROM users WHERE username = ?')
+  const row = await db.prepare('SELECT id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, email, created_at FROM users WHERE username = ?')
     .bind(username)
     .first<UserRow>();
   if (!row) {
