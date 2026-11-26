@@ -3,14 +3,14 @@ import { useEffect, useState } from 'react';
 import { PACKAGES, perChatPrice } from '@/lib/packages';
 
 /**
- * 购买页：展示套餐与收款码。
- * 流程：用户扫码付款（备注填网站用户名）→ 站长在 /admin 一键充值 → 用户刷新即可用。
+ * 购买页：展示套餐，引导到微店购买（支持微信/支付宝，付款自动发兑换码）。
+ * 用户拿到兑换码后回本站「账号与兑换」输入，权益即刻到账。
+ * 微店店铺链接：https://k.youshop10.com/4LQnm89P（如需更换改下方 href 即可）
  */
 export default function PayPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [hasTimePass, setHasTimePass] = useState(false);
-  const [qrError, setQrError] = useState(false);
 
   useEffect(() => {
     fetch('/api/me', { cache: 'no-store' })
@@ -48,12 +48,12 @@ export default function PayPage() {
                 {hasTimePass ? '不限问 · 时间包生效中' : `剩余 ${credits ?? 0} 次`}
               </span>
               <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--tx-3)' }}>
-                付款备注请填写此用户名
+                购买后兑换码计入当前登录账号
               </span>
             </>
           ) : (
             <span style={{ fontSize: 13, color: 'var(--tx-2)' }}>
-              请先 <a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>登录或注册</a>，付款时需备注你的用户名
+              请先 <a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>登录或注册</a>，兑换码将充入登录账号
             </span>
           )}
         </div>
@@ -93,57 +93,38 @@ export default function PayPage() {
           })}
         </div>
 
-        {/* 收款码 + 流程 */}
-        <div className="card" style={{ padding: '28px 24px', display: 'grid', gridTemplateColumns: 'minmax(220px, 280px) 1fr', gap: 28, alignItems: 'start' }} data-qr-block>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 12, letterSpacing: '0.2em', color: 'var(--tx-3)', marginBottom: 12 }}>支付宝扫码付款</div>
-            {!qrError ? (
-              // 站长把自己的收款码图片放到 public/receipt-qr.jpg 即自动显示
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src="/receipt-qr.jpg"
-                alt="收款码"
-                onError={() => setQrError(true)}
-                style={{ width: '100%', maxWidth: 240, borderRadius: 12, border: '1px solid var(--bdr)' }}
-              />
-            ) : (
-              <div style={{
-                width: '100%', maxWidth: 240, height: 240, margin: '0 auto',
-                border: '1px dashed var(--bdr-heavy)', borderRadius: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7, padding: 16,
-              }}>
-                收款码待上传<br />（站长放入 public/receipt-qr.jpg）
+        {/* 购买方式：微店（支持微信/支付宝，自动发兑换码） */}
+        <div style={{ maxWidth: 560, margin: '0 auto' }}>
+          <div className="card" style={{ padding: '28px 26px', display: 'flex', flexDirection: 'column', gap: 16, border: '2px solid var(--ac)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx-0)', marginBottom: 6 }}>微店购买 · 自动发货</div>
+              <div style={{ fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7 }}>
+                支持 <strong style={{ color: 'var(--ac)' }}>微信支付</strong> 和 <strong style={{ color: 'var(--ac)' }}>支付宝</strong>
+                ，付款后<strong style={{ color: 'var(--ac)' }}>秒收兑换码</strong>，无需等待
               </div>
-            )}
-          </div>
-
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx-0)', marginBottom: 12 }}>购买步骤</div>
-            <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 2, color: 'var(--tx-2)' }}>
-              <li>扫码付款，<strong style={{ color: 'var(--ac)' }}>付款备注里填写你的网站用户名</strong>{username ? `（你的用户名：${username}）` : ''}</li>
-              <li>付款后告知站长（或稍等片刻），站长会在后台为你开通</li>
-              <li>开通后刷新页面，次数即刻到账，可直接在起盘 / 合盘页提问</li>
-            </ol>
-            <div style={{
-              marginTop: 16, padding: '10px 14px', borderRadius: 10,
-              background: 'var(--ac-bg)', border: '1px solid var(--ac-bdr)',
-              fontSize: 12, color: 'var(--tx-2)', lineHeight: 1.7,
-            }}>
-              忘记备注用户名？把付款截图和你的用户名发给站长即可，不影响开通。
             </div>
-            <div style={{ marginTop: 16, fontSize: 12, color: 'var(--tx-3)' }}>
-              已有兑换码？<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>去兑换</a>
+            <ol style={{ margin: 0, paddingLeft: 22, fontSize: 13, lineHeight: 2.1, color: 'var(--tx-2)' }}>
+              <li>点击下方按钮进入微店，选择套餐付款</li>
+              <li>付款后自动收到<strong style={{ color: 'var(--ac)' }}>兑换码</strong>（微店订单页查看）</li>
+              <li>回本站<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>「账号与兑换」</a>输入兑换码，次数即刻到账</li>
+            </ol>
+            <a
+              href="https://k.youshop10.com/4LQnm89P"
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                display: 'block', textAlign: 'center', padding: '13px', borderRadius: 10,
+                background: 'var(--ac)', color: '#fff', fontSize: 15, fontWeight: 500,
+                textDecoration: 'none',
+              }}
+            >
+              进入微店购买
+            </a>
+            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--tx-3)' }}>
+              已有兑换码？<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>直接去兑换</a>
             </div>
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 640px) {
-          [data-qr-block] { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
     </div>
   );
 }
