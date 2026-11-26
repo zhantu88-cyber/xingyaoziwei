@@ -1,7 +1,19 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart } from '@/lib/ziwei/types';
+
+/** 把 AI 回答里的 **加粗** 渲染成 <strong>，避免原样显示星号。
+ *  只做这一处白名单转换，不解析其它 Markdown，杜绝 XSS。 */
+function renderRichText(text: string): ReactNode[] {
+  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
+      return <strong key={i} style={{ color: 'var(--ac)', fontWeight: 600 }}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
 
 interface Message {
   role: 'user' | 'assistant';
@@ -102,13 +114,13 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
       {/* 标题 */}
       <div className="px-4 py-3 flex-shrink-0 flex items-start justify-between gap-2" style={{ borderBottom: '1px solid var(--bdr)' }}>
         <div>
-          <h3 className="text-xs font-medium tracking-widest" style={{ color: 'var(--ac)' }}>AI 命盘解读</h3>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--tx-3)' }}>
+          <h3 style={{ color: 'var(--ac)', fontSize: 15, letterSpacing: '0.1em', fontWeight: 600 }}>AI 命盘解读</h3>
+          <p className="mt-1" style={{ color: 'var(--tx-3)', fontSize: 12 }}>
             古典紫微斗数 · 智慧解析
             {typeof liunianYear === 'number' ? ` · 流年 ${liunianYear}` : ''}
           </p>
         </div>
-        <div className="text-right text-[10px] flex-shrink-0" style={{ color: 'var(--tx-3)' }}>
+        <div className="text-right flex-shrink-0" style={{ color: 'var(--tx-3)', fontSize: 12 }}>
           {hasTimePass ? (
             <span style={{ color: 'var(--ac)' }}>不限问 · 时间包</span>
           ) : credits !== null ? (
@@ -128,7 +140,7 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
         {messages.length === 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-8">
             <div className="text-4xl mb-3" style={{ color: 'var(--ac)', opacity: 0.15 }}>✦</div>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--tx-3)' }}>
+            <p style={{ color: 'var(--tx-3)', fontSize: 14, lineHeight: 1.8 }}>
               命盘已生成，可直接提问<br />
               或从下方选择常见问题开始解读
             </p>
@@ -144,24 +156,27 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className="max-w-[85%] rounded-xl px-3.5 py-2.5 text-sm leading-relaxed"
+                className={`rounded-2xl ${msg.role === 'user' ? 'max-w-[92%] px-4 py-3' : 'w-full px-4 py-3.5'}`}
                 style={msg.role === 'user' ? {
                   background: 'var(--ac-bg)',
                   border: '1px solid var(--ac-bdr)',
                   color: 'var(--ac)',
+                  fontSize: 15,
+                  lineHeight: 1.85,
                 } : {
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--bdr)',
+                  background: 'transparent',
                   color: 'var(--tx-1)',
+                  fontSize: 15,
+                  lineHeight: 1.9,
                 }}
               >
                 {msg.role === 'assistant' && (
-                  <div className="text-[10px] mb-1" style={{ color: 'var(--tx-3)' }}>命理师 ·</div>
+                  <div className="mb-2" style={{ color: 'var(--tx-3)', fontSize: 12 }}>命理师 ·</div>
                 )}
-                <div className="whitespace-pre-wrap text-xs leading-relaxed">
-                  {msg.content}
+                <div className="whitespace-pre-wrap" style={{ fontSize: 'inherit', lineHeight: 'inherit' }}>
+                  {renderRichText(msg.content)}
                   {loading && i === messages.length - 1 && msg.role === 'assistant' && (
-                    <span className="inline-block w-1.5 h-3 ml-0.5 animate-pulse" style={{ background: 'var(--ac)', opacity: 0.6 }} />
+                    <span className="inline-block w-1.5 h-3.5 ml-0.5 animate-pulse" style={{ background: 'var(--ac)', opacity: 0.6 }} />
                   )}
                 </div>
               </div>
@@ -179,7 +194,7 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
                 key={i}
                 onClick={() => sendMessage(q)}
                 disabled={loading}
-                className="text-left text-[10px] rounded-lg px-2.5 py-2 transition-all line-clamp-2"
+                className="text-left rounded-lg px-3 py-2.5 transition-all line-clamp-2"
                 style={{
                   color: 'var(--tx-2)',
                   border: '1px solid var(--bdr)',
@@ -211,21 +226,23 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
             placeholder="输入问题，如：我的感情运势如何？"
             disabled={loading}
-            className="flex-1 rounded-lg px-3 py-2 text-xs focus:outline-none transition-colors"
+            className="flex-1 rounded-lg px-3.5 py-2.5 focus:outline-none transition-colors"
             style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--bdr)',
               color: 'var(--tx-1)',
+              fontSize: 14,
             }}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={loading || !input.trim()}
-            className="px-3 py-2 rounded-lg text-xs font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="px-4 py-2.5 rounded-lg font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             style={{
               background: 'var(--ac-bg)',
               border: '1px solid var(--ac-bdr)',
               color: 'var(--ac)',
+              fontSize: 14,
             }}
           >
             解读
