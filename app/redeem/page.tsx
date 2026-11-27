@@ -24,6 +24,10 @@ type Mode = 'login' | 'signup';
 
 export default function RedeemPage() {
   const [me, setMe] = useState<Me | null>(null);
+  // 邀请：从 URL ?ref=xxx 读取邀请人；登录后查本周领取状态
+  const [inviteRef, setInviteRef] = useState<string | null>(null);
+  const [inviteStatus, setInviteStatus] = useState<{ redeemedThisWeek: boolean; totalInvited: number } | null>(null);
+  const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<Mode>('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -50,7 +54,26 @@ export default function RedeemPage() {
     }
   }, []);
 
-  useEffect(() => { void loadMe(); }, [loadMe]);
+  useEffect(() => {
+    void loadMe();
+    // 读取邀请码：有 ref 参数则默认切到注册 Tab
+    const ref = new URLSearchParams(window.location.search).get('ref');
+    if (ref && /^[a-z0-9_]{3,32}$/i.test(ref)) {
+      setInviteRef(ref.toLowerCase());
+      setMode('signup');
+    }
+  }, [loadMe]);
+
+  // 登录后加载邀请状态
+  useEffect(() => {
+    if (!me?.authenticated) return;
+    fetch('/api/invite/status', { cache: 'no-store' })
+      .then(r => r.json())
+      .then((d: { redeemedThisWeek?: boolean; totalInvited?: number }) => {
+        setInviteStatus({ redeemedThisWeek: !!d.redeemedThisWeek, totalInvited: d.totalInvited ?? 0 });
+      })
+      .catch(() => { /* 忽略 */ });
+  }, [me?.authenticated]);
 
   const handleAuth = async () => {
     if (mode === 'signup' && password !== passwordConfirm) {
@@ -66,7 +89,7 @@ export default function RedeemPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(mode === 'login'
           ? { username, password, turnstileToken }
-          : { username, password, email, turnstileToken }),
+          : { username, password, email, turnstileToken, ref: inviteRef }),
       });
       const data = (await res.json()) as { error?: string; freeCreditGranted?: boolean };
       if (!res.ok) {
@@ -205,7 +228,7 @@ export default function RedeemPage() {
     <main style={{ maxWidth: 460, margin: '48px auto', padding: '0 20px' }}>
       <h1 style={{ fontSize: 24, marginBottom: 6 }}>账号与兑换</h1>
       <p style={{ fontSize: 13, color: '#888', marginBottom: 24, lineHeight: 1.7 }}>
-        注册即送 1 次免费问答。登录后输入兑换码即可充值次数或开通不限问。权益绑定账号，换设备重新登录即可恢复。
+        注册即送 1 次免费问答（通过好友邀请链接注册送 2 次）。登录后输入兑换码即可充值次数或开通不限问。权益绑定账号，换设备重新登录即可恢复。
       </p>
 
       {msg && (
@@ -238,6 +261,15 @@ export default function RedeemPage() {
               </button>
             ))}
           </div>
+          {inviteRef && mode === 'signup' && (
+            <div style={{
+              padding: '10px 12px', borderRadius: 8, marginBottom: 16, fontSize: 13, lineHeight: 1.7,
+              background: 'rgba(184,146,42,0.12)', border: '1px solid rgba(184,146,42,0.35)',
+              color: '#8a6a1f',
+            }}>
+              <strong>{inviteRef}</strong> 邀请你注册 —— 注册成功后你将获得 <strong>2 次免费问答</strong>
+            </div>
+          )}
           <div style={{ display: 'grid', gap: 12 }}>
             <input style={inputStyle} placeholder="用户名" value={username}
               onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
@@ -293,6 +325,46 @@ export default function RedeemPage() {
               style={{ marginTop: 12, fontSize: 12, background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', padding: 0 }}>
               退出登录
             </button>
+          </div>
+
+          {/* 邀请好友 */}
+          <div style={{ ...cardStyle, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+            <h2 style={{ fontSize: 15, marginBottom: 8 }}>邀请好友 · 领免费问答</h2>
+            <div style={{ fontSize: 12, color: '#888', lineHeight: 1.8, marginBottom: 12 }}>
+              好友通过你的专属链接注册成功后，<strong style={{ color: '#8a6a1f' }}>你得 1 次、好友得 2 次</strong>问答。
+              每人每周最多领 1 次，好友必须是从未注册过的新用户。
+            </div>
+            <div style={{
+              padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12,
+              background: 'rgba(0,0,0,0.04)', wordBreak: 'break-all', color: 'var(--tx-2, inherit)',
+            }}>
+              {typeof window !== 'undefined' ? `${window.location.origin}/redeem?ref=${u.username}` : `/redeem?ref=${u.username}`}
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                const link = `${window.location.origin}/redeem?ref=${u.username}`;
+                try {
+                  await navigator.clipboard.writeText(link);
+                } catch {
+                  // 微信内置浏览器可能无 clipboard API，退回选中复制
+                  const ta = document.createElement('textarea');
+                  ta.value = link; document.body.appendChild(ta); ta.select();
+                  document.execCommand('copy'); document.body.removeChild(ta);
+                }
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              style={{ ...btnStyle, background: '#8a6a1f' }}
+            >
+              {copied ? '已复制，发给好友吧' : '复制邀请链接'}
+            </button>
+            {inviteStatus && (
+              <div style={{ fontSize: 12, color: '#888', marginTop: 10, lineHeight: 1.8 }}>
+                本周状态：{inviteStatus.redeemedThisWeek ? '已领取（下周可再领）' : '可领取'}
+                {' · '}累计成功邀请 {inviteStatus.totalInvited} 人
+              </div>
+            )}
           </div>
 
           <div style={{ ...cardStyle, borderRadius: 12, padding: 20, marginBottom: 16 }}>

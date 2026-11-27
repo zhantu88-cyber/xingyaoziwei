@@ -104,3 +104,13 @@ CREATE TABLE IF NOT EXISTS password_resets (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_password_resets_hash ON password_resets(token_hash);
+
+-- 邀请好友奖励：invitee_id 为主键确保每个新用户只算一次邀请；
+-- inviter_id + reward_week 控制每个邀请人每周最多领一次奖励（ISO 周，周一重置）。
+CREATE TABLE IF NOT EXISTS invites (
+  invitee_id INTEGER PRIMARY KEY,
+  inviter_id INTEGER NOT NULL,
+  reward_week TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invites_invitER_week ON invites(inviter_id, reward_week);

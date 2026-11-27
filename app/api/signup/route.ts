@@ -3,6 +3,7 @@ import {
   getClientIp,
   SIGNUP_ALERT_PER_HOUR,
 } from '@/lib/entitlement';
+import { applyInviteReward, normalizeInviteCode } from '@/lib/invite';
 import {
   createSessionToken,
   generateSalt,
@@ -21,6 +22,7 @@ type SignupBody = {
   password?: unknown;
   email?: unknown;
   turnstileToken?: unknown;
+  ref?: unknown; // 邀请人用户名（来自分享链接 ?ref=xxx）
 };
 
 function normalizeUsername(value: unknown): string | null {
@@ -102,6 +104,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: '注册后读取用户失败' }, { status: 500 });
   }
 
+  // 邀请奖励：好友通过 ?ref=邀请人 链接注册成功 → 新用户 +1、邀请人本周首次 +1
+  const invite = await applyInviteReward(db, row.id, normalizeInviteCode(body.ref), new Date(createdAt));
+  const finalCredits = invite.inviteeBonus ? row.credits + invite.inviteeBonus : row.credits;
+
   const token = await createSessionToken(row.id);
   return Response.json(
     {
@@ -109,10 +115,11 @@ export async function POST(request: Request): Promise<Response> {
         id: row.id,
         username: row.username,
         isPaid: isPaidActive(row),
-        credits: row.credits,
+        credits: finalCredits,
         freeUsed: row.free_used,
       },
       freeCreditGranted: grantFree,
+      inviteBonus: invite.inviteeBonus,
       turnstileSkipped: turnstile.skipped,
     },
     { status: 201, headers: { 'Set-Cookie': sessionCookieHeader(token), 'Cache-Control': 'no-store' } },
