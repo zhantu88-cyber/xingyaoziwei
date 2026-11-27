@@ -76,13 +76,17 @@ export default function RedeemPage() {
       setPassword('');
       setPasswordConfirm('');
       if (mode === 'login') {
-        setMsg({ type: 'ok', text: '登录成功' });
+        setMsg({ type: 'ok', text: '登录成功，正在进入…' });
       } else if (data.freeCreditGranted === false) {
-        setMsg({ type: 'ok', text: '注册成功，已自动登录。免费体验次数已被领取过，如需提问请使用兑换码。' });
+        setMsg({ type: 'ok', text: '注册成功，正在进入…（免费体验次数已被领取过，如需提问请使用兑换码）' });
       } else {
-        setMsg({ type: 'ok', text: '注册成功，已自动登录（赠送 1 次免费问答）' });
+        setMsg({ type: 'ok', text: '注册成功，正在进入…（赠送 1 次免费问答）' });
       }
-      await loadMe();
+      // 登录/注册成功后刷新页面：让 HttpOnly cookie 重新载入，页面从头渲染成已登录态。
+      // 之前只调 loadMe() 在部分浏览器（尤其微信内置）会因 cookie 未及时生效而卡在登录表单。
+      await new Promise(resolve => setTimeout(resolve, 400));
+      window.location.reload();
+      return;
     } catch {
       setMsg({ type: 'err', text: '网络错误，请稍后重试' });
     } finally {
