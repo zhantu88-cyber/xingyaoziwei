@@ -3,10 +3,22 @@ import { useEffect, useState } from 'react';
 import { PACKAGES, perChatPrice } from '@/lib/packages';
 
 /**
- * 购买页：展示套餐，引导到微店购买（支持微信/支付宝，付款自动发兑换码）。
+ * 购买页：展示套餐，点击套餐卡片直达微店对应商品（微信/支付宝，付款自动发兑换码）。
  * 用户拿到兑换码后回本站「账号与兑换」输入，权益即刻到账。
- * 微店店铺链接：https://k.youshop10.com/4LQnm89P（如需更换改下方 href 即可）
+ *
+ * ★ 微店商品链接统一维护在这里（id → 商品链接）：
+ *   拿到四个单品链接后，只改 PACKAGE_URLS 四个值即可，无需动页面代码。
+ *   未填单品链接时回退到店铺首页 SHOP_URL。
  */
+const SHOP_URL = 'https://k.youshop10.com/4LQnm89P';
+const PACKAGE_URLS: Record<string, string> = {
+  c3: 'https://weidian.com/item.html?itemID=7915377738',
+  c10: 'https://weidian.com/item.html?itemID=7915437780',
+  c30: 'https://weidian.com/item.html?itemID=7915400106',
+  t7: 'https://weidian.com/item.html?itemID=7912398089',
+};
+const packageUrl = (id: string) => PACKAGE_URLS[id] || SHOP_URL;
+
 export default function PayPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
@@ -58,19 +70,29 @@ export default function PayPage() {
           )}
         </div>
 
-        {/* 套餐 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 32 }}>
+        {/* 套餐：每张卡片即购买入口，点击直达微店对应商品 */}
+        <div style={{ fontSize: 13, color: 'var(--tx-2)', textAlign: 'center', marginBottom: 14, lineHeight: 1.7 }}>
+          点击想买的套餐卡片，将<strong style={{ color: 'var(--ac)' }}>前往微店付款</strong>（付款后自动发兑换码）
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, marginBottom: 14 }}>
           {PACKAGES.map(p => {
             const per = perChatPrice(p);
             return (
-              <div
+              <a
                 key={p.id}
+                href={packageUrl(p.id)}
                 className="card"
                 style={{
                   padding: '20px 18px',
                   position: 'relative',
-                  border: p.badge ? '2px solid var(--ac)' : '1px solid var(--bdr)',
+                  display: 'block',
+                  textDecoration: 'none',
+                  border: '1px solid var(--bdr)',
+                  cursor: 'pointer',
+                  transition: 'border-color .18s, transform .18s',
                 }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--ac)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--bdr)'; e.currentTarget.style.transform = 'none'; }}
               >
                 {p.badge && (
                   <span style={{
@@ -88,39 +110,26 @@ export default function PayPage() {
                 {per && (
                   <div style={{ fontSize: 11, color: 'var(--tx-3)', marginTop: 6 }}>约 ¥{per} / 次</div>
                 )}
-              </div>
+                <div style={{ marginTop: 12, fontSize: 12, color: 'var(--ac)', fontWeight: 500 }}>
+                  前往微店购买 →
+                </div>
+              </a>
             );
           })}
         </div>
 
-        {/* 购买方式：微店（支持微信/支付宝，自动发兑换码） */}
-        <div style={{ maxWidth: 560, margin: '0 auto' }}>
-          <div className="card" style={{ padding: '28px 26px', display: 'flex', flexDirection: 'column', gap: 16, border: '2px solid var(--ac)' }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--tx-0)', marginBottom: 6 }}>微店购买 · 自动发货</div>
-              <div style={{ fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7 }}>
-                支持 <strong style={{ color: 'var(--ac)' }}>微信支付</strong> 和 <strong style={{ color: 'var(--ac)' }}>支付宝</strong>
-                ，付款后<strong style={{ color: 'var(--ac)' }}>秒收兑换码</strong>，无需等待
-              </div>
-            </div>
+        {/* 购买流程说明（不重复放购买按钮，避免用户困惑点哪个） */}
+        <div style={{ maxWidth: 620, margin: '0 auto' }}>
+          <div className="card" style={{ padding: '22px 26px' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx-0)', marginBottom: 12 }}>购买流程</div>
             <ol style={{ margin: 0, paddingLeft: 22, fontSize: 13, lineHeight: 2.1, color: 'var(--tx-2)' }}>
-              <li>点击下方按钮进入微店，选择套餐付款</li>
-              <li>付款后自动收到<strong style={{ color: 'var(--ac)' }}>兑换码</strong>（微店订单页查看）</li>
-              <li>回本站<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>「账号与兑换」</a>输入兑换码，次数即刻到账</li>
+              <li>点击上方想买的套餐卡片，进入微店（支持微信 / 支付宝）</li>
+              <li>付款后，兑换码会<strong style={{ color: 'var(--ac)' }}>自动发到微店订单</strong>里，无需等待站长</li>
+              <li>复制兑换码，回本站<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>「账号与兑换」</a>输入，即刻到账</li>
             </ol>
-            <a
-              href="https://k.youshop10.com/4LQnm89P"
-              target="_blank" rel="noopener noreferrer"
-              style={{
-                display: 'block', textAlign: 'center', padding: '13px', borderRadius: 10,
-                background: 'var(--ac)', color: '#fff', fontSize: 15, fontWeight: 500,
-                textDecoration: 'none',
-              }}
-            >
-              进入微店购买
-            </a>
-            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--tx-3)' }}>
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7 }}>
               已有兑换码？<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>直接去兑换</a>
+              {' · '}微店付款遇到问题（如反复跳转），可<a href={SHOP_URL} style={{ color: 'var(--ac)', textDecoration: 'underline' }}>打开微店店铺首页</a>重试
             </div>
           </div>
         </div>
