@@ -10,9 +10,12 @@
 import { extendCreditsExpiry } from '@/lib/entitlement';
 import type { D1Like } from '@/lib/auth';
 
-/** 返回 ISO 周标识，如 2026-W48（周一为一周起点）。 */
+/** 返回 ISO 周标识，如 2026-W48（周一为一周起点）。
+ *  Cloudflare Workers 运行在 UTC，先偏移到北京时间（UTC+8）再按 UTC 取值，
+ *  这样「每周一次」的重置点是北京时间周一 00:00，符合用户直觉。 */
 export function isoWeek(date: Date = new Date()): string {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const bj = new Date(date.getTime() + 8 * 60 * 60 * 1000);
+  const d = new Date(Date.UTC(bj.getUTCFullYear(), bj.getUTCMonth(), bj.getUTCDate()));
   const day = d.getUTCDay() || 7; // 周日=7
   d.setUTCDate(d.getUTCDate() + 4 - day); // 拿到本周四
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
