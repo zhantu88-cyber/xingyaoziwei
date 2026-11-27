@@ -16,7 +16,6 @@ type Me = {
     creditsExpiresAt: string | null;
     isPaid: boolean;
     freeUsed: number;
-    isAdmin?: boolean;
     email?: string | null;
   };
 };
