@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import type { ZiweiChart } from '@/lib/ziwei/types';
 
@@ -71,6 +71,46 @@ export interface InsightPanelProps {
  * 这里在渲染前把「一句话定调」里的坐命表述改成准确的「命宫无主星，借对宫 XX 论命」。
  * 只改这一处定调句；正文里本就写对的「命宫空宫、借对宫」段落保持不动。
  */
+/**
+ * 术语/古籍友好化（只改显示文案，不动内容库）：
+ *  1) 每个 Tab 首次出现「庙旺/入庙/落陷/陷地」时补一句白话注解，避免黑话劝退；
+ *  2) 古籍引用里出现「下贱/孤寡/夭折」等极端词时，在该行末尾加温和提示，
+ *     明确这是古籍文学化表述、非现实预言，避免吓到用户。
+ */
+const TERM_NOTES: Record<string, string> = {
+  庙旺: '庙旺＝星曜力量强、发挥正面特质',
+  入庙: '入庙＝星曜处在最有利的位置，力量强',
+  落陷: '落陷＝星曜力量弱、正面特质打折',
+  陷地: '陷地＝星曜处在不利位置，力量弱',
+};
+const HARSH_WORDS = ['下贱', '孤寡', '夭折', '横死', '必死'];
+const HARSH_NOTE = '（上述为古籍文学化表述，非现实预言，供参考不必对号入座）';
+
+function annotateText(text: string): string {
+  if (!text) return text;
+  let out = text;
+
+  // 1) 术语首次出现加注（每个 Tab 一段文本，只标第一次）
+  //    原文若已在术语后自带括注（如「入庙（力量强）」），跳过避免重复。
+  const seen = new Set<string>();
+  out = out.replace(/(庙旺|入庙|落陷|陷地)(\s*[（(])?/g, (full, term: string, bracket: string | undefined) => {
+    if (seen.has(term)) return full;
+    // 已自带括注 → 只记录、不重复加
+    if (bracket) { seen.add(term); return full; }
+    seen.add(term);
+    return `${term}（${TERM_NOTES[term]}）`;
+  });
+
+  // 2) 含极端词的行，若该行还没类似提示，就在行末加温和说明
+  out = out.split('\n').map(line => {
+    if (!HARSH_WORDS.some(w => line.includes(w))) return line;
+    if (/文学化表述|非现实预言|不必对号入座/.test(line)) return line;
+    return line + HARSH_NOTE;
+  }).join('\n');
+
+  return out;
+}
+
 function fixEmptyMingWording(text: string, chart: ZiweiChart | undefined): string {
   if (!chart) return text;
   const ming = chart.palaces.find(p => p.name === '命宫');
@@ -251,7 +291,9 @@ export default function InsightPanel({
 
   const current = DIMENSIONS.find((d) => d.key === active) ?? DIMENSIONS[0];
   const rawText = reading?.[current.key];
-  const text = typeof rawText === 'string' ? fixEmptyMingWording(rawText, chart) : rawText;
+  const text = typeof rawText === 'string'
+    ? annotateText(fixEmptyMingWording(rawText, chart))
+    : rawText;
   const hasText = typeof text === 'string' && text.trim().length > 0;
 
   return (
