@@ -102,10 +102,45 @@ export default function ChartPage() {
               type="button"
               className={`tab-item ${rightTab === 'chat' ? 'active' : ''}`}
               onClick={() => setRightTab('chat')}
+              style={{ position: 'relative' }}
             >
               AI 问答
+              {/* 小金点：让这个 Tab 从两个朴素按钮里跳出来 */}
+              <span aria-hidden style={{
+                position: 'absolute', top: -3, right: -6,
+                width: 7, height: 7, borderRadius: '50%',
+                background: rightTab === 'chat' ? 'var(--bg-0)' : '#b8860b',
+                boxShadow: '0 0 0 2px var(--bg-0)',
+              }} />
             </button>
           </div>
+          {/* 引导条：只在「命盘解读」Tab 显示，点一下切到 AI 问答。
+              很多用户排完盘只看静态解读，不知道可以针对自己的盘自由提问。 */}
+          {rightTab === 'reading' && (
+            <button
+              type="button"
+              onClick={() => setRightTab('chat')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', marginBottom: 12, padding: '12px 14px',
+                borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                border: '1px solid rgba(184,134,11,0.35)',
+                background: 'linear-gradient(100deg, rgba(184,134,11,0.12), rgba(184,134,11,0.03))',
+                color: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden>✨</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#b8860b' }}>
+                  想问得更具体？试试 AI 解读
+                </span>
+                <span style={{ display: 'block', fontSize: 11.5, color: 'var(--tx-3)', marginTop: 3, lineHeight: 1.5 }}>
+                  结合你这张盘自由提问：感情、事业、某颗星怎么理解…（消耗问答次数，注册送 1 次）
+                </span>
+              </span>
+              <span style={{ fontSize: 18, color: '#b8860b', flexShrink: 0 }} aria-hidden>›</span>
+            </button>
+          )}
           <div style={{ display: rightTab === 'reading' ? 'block' : 'none' }}>
             <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} chart={chart ?? undefined} />
           </div>
