@@ -107,7 +107,7 @@ export default function ChartPage() {
             </button>
           </div>
           <div style={{ display: rightTab === 'reading' ? 'block' : 'none' }}>
-            <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} />
+            <InsightPanel selectedPalace={selectedPalace} readingKey={readingKey ?? ''} chart={chart ?? undefined} />
           </div>
           <div
             style={{

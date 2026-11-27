@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
+import type { ZiweiChart } from '@/lib/ziwei/types';
 
 // 右侧「命理档案」分栏：与原始 UI 一致，默认从「总论」开始。
 // 每个 Tab 对应 /api/reading 返回的一个维度字段。
@@ -58,8 +59,43 @@ export interface InsightPanelProps {
   readingKey?: string;
   /** 兼容旧调用：也可直接传 k */
   k?: string;
+  /** 实时排盘数据：用于校验静态文本中"坐命"表述是否与命盘一致 */
+  chart?: ZiweiChart;
   className?: string;
   style?: CSSProperties;
+}
+
+/**
+ * 静态解读库对「命宫空宫」的盘，常用「天同天梁坐命」这类简化说法（实际是借对宫星论命），
+ * 普通人看到自己命宫是空的、文字却说 XX 坐命，容易误解为解读错误。
+ * 这里在渲染前把「一句话定调」里的坐命表述改成准确的「命宫无主星，借对宫 XX 论命」。
+ * 只改这一处定调句；正文里本就写对的「命宫空宫、借对宫」段落保持不动。
+ */
+function fixEmptyMingWording(text: string, chart: ZiweiChart | undefined): string {
+  if (!chart) return text;
+  const ming = chart.palaces.find(p => p.name === '命宫');
+  const mingMajor = (ming?.stars || []).filter(s => s.type === 'major');
+  if (mingMajor.length > 0) return text; // 命宫有主星，无需修正
+
+  // 命宫空宫：取对宫（迁移）主星，作为借星依据
+  const dui = chart.palaces.find(p => p.name === '迁移');
+  const duiStars = (dui?.stars || []).filter(s => s.type === 'major').map(s => s.name);
+  if (duiStars.length === 0) return text;
+
+  // 匹配【一句话定调】段（到下一个空行或下一个【】标题为止）
+  return text.replace(
+    /(\*\*【一句话定调】\*\*\s*\n\s*)([\s\S]*?)(?=\n\s*\n|\n\s*\*\*【|$)/,
+    (full, head: string, body: string) => {
+      // 只在这句确实声称"XX坐命"时才改，避免动已经正确的表述
+      if (!/坐命|坐守命宫|坐命宫/.test(body)) return full;
+      // 去掉原句里的"XX坐命"前缀部分，保留后半句的具体建议（善良厚道有贵人…）
+      const advice = body
+        .replace(/^[\s\S]*?(?:坐命宫|坐守命宫|坐命)[，,、]?\s*/, '')
+        .trim();
+      const joined = advice ? `：${advice}` : '';
+      return `${head}命宫无主星，借对宫${duiStars.join('、')}论命${joined}`;
+    },
+  );
 }
 
 const ACCENT = '#b8860b';
@@ -96,6 +132,7 @@ export default function InsightPanel({
   selectedPalace,
   readingKey,
   k,
+  chart,
   className = '',
   style,
 }: InsightPanelProps) {
@@ -213,7 +250,8 @@ export default function InsightPanel({
   }
 
   const current = DIMENSIONS.find((d) => d.key === active) ?? DIMENSIONS[0];
-  const text = reading?.[current.key];
+  const rawText = reading?.[current.key];
+  const text = typeof rawText === 'string' ? fixEmptyMingWording(rawText, chart) : rawText;
   const hasText = typeof text === 'string' && text.trim().length > 0;
 
   return (
