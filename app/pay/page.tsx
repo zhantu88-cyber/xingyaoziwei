@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import { PACKAGES, perChatPrice } from '@/lib/packages';
 
 /**
@@ -23,6 +24,7 @@ export default function PayPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [credits, setCredits] = useState<number | null>(null);
   const [hasTimePass, setHasTimePass] = useState(false);
+  const [selectedPkg, setSelectedPkg] = useState('c10'); // 支付区默认选中的套餐
 
   useEffect(() => {
     fetch('/api/me', { cache: 'no-store' })
@@ -118,18 +120,85 @@ export default function PayPage() {
           })}
         </div>
 
-        {/* 购买流程说明（不重复放购买按钮，避免用户困惑点哪个） */}
-        <div style={{ maxWidth: 620, margin: '0 auto' }}>
-          <div className="card" style={{ padding: '22px 26px' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx-0)', marginBottom: 12 }}>购买流程</div>
-            <ol style={{ margin: 0, paddingLeft: 22, fontSize: 13, lineHeight: 2.1, color: 'var(--tx-2)' }}>
-              <li>点击上方想买的套餐卡片，进入微店（支持微信 / 支付宝）</li>
-              <li>付款后，兑换码会<strong style={{ color: 'var(--ac)' }}>自动发到微店订单</strong>里，无需等待站长</li>
-              <li>复制兑换码，回本站<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>「账号与兑换」</a>输入，即刻到账</li>
-            </ol>
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7 }}>
+        {/* 双支付入口：选套餐 → 微信扫码 / 支付宝跳转 */}
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div className="card" style={{ padding: '24px 26px' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--tx-0)', marginBottom: 4 }}>选择支付方式</div>
+            <p style={{ fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              先选套餐，再按你方便的支付方式付款 · 付款后自动发兑换码
+            </p>
+
+            {/* 套餐切换 */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {PACKAGES.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedPkg(p.id)}
+                  style={{
+                    padding: '7px 13px', borderRadius: 999, fontSize: 12, cursor: 'pointer',
+                    border: selectedPkg === p.id ? '1px solid var(--ac)' : '1px solid var(--bdr)',
+                    background: selectedPkg === p.id ? 'var(--ac-bg)' : 'transparent',
+                    color: selectedPkg === p.id ? 'var(--ac)' : 'var(--tx-2)',
+                  }}
+                >
+                  {p.name} ¥{p.price}
+                </button>
+              ))}
+            </div>
+
+            {/* 两个支付入口并排 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+              {/* 微信扫码 */}
+              <div style={{
+                border: '1px solid var(--bdr)', borderRadius: 12, padding: '18px 16px', textAlign: 'center',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx-0)' }}>微信支付 · 扫码</div>
+                <div style={{ background: '#fff', padding: 10, borderRadius: 10, display: 'inline-block' }}>
+                  <QRCodeSVG value={packageUrl(selectedPkg)} size={148} bgColor="#ffffff" fgColor="#1a1a1a" />
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--tx-2)', lineHeight: 1.7 }}>
+                  用<strong style={{ color: 'var(--ac)' }}>微信扫一扫</strong><br />在微信内打开并付款
+                </div>
+              </div>
+
+              {/* 支付宝 / 银行卡 */}
+              <div style={{
+                border: '1px solid var(--bdr)', borderRadius: 12, padding: '18px 16px',
+                display: 'flex', flexDirection: 'column', gap: 12,
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--tx-0)', textAlign: 'center' }}>支付宝 / 银行卡</div>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, color: 'var(--tx-2)', lineHeight: 1.8 }}>
+                    在<strong style={{ color: 'var(--ac)' }}>手机浏览器</strong>打开微店<br />即可用支付宝或银行卡付款
+                  </div>
+                </div>
+                <a
+                  href={packageUrl(selectedPkg)}
+                  style={{
+                    display: 'block', textAlign: 'center', padding: '12px', borderRadius: 10,
+                    background: 'var(--ac-bg)', border: '1px solid var(--ac-bdr)',
+                    color: 'var(--ac)', fontSize: 14, textDecoration: 'none', fontWeight: 500,
+                  }}
+                >
+                  支付宝 / 银行卡付款 →
+                </a>
+              </div>
+            </div>
+
+            {/* 购买流程 */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--bdr)' }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx-0)', marginBottom: 8 }}>付款后怎么拿到次数</div>
+              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 12, lineHeight: 2, color: 'var(--tx-2)' }}>
+                <li>付款后，兑换码<strong style={{ color: 'var(--ac)' }}>自动发到微店订单</strong>里，无需等待</li>
+                <li>复制兑换码，回本站<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>「账号与兑换」</a>输入，即刻到账</li>
+              </ol>
+            </div>
+
+            <div style={{ marginTop: 14, fontSize: 12, color: 'var(--tx-3)', lineHeight: 1.7 }}>
               已有兑换码？<a href="/redeem" style={{ color: 'var(--ac)', textDecoration: 'underline' }}>直接去兑换</a>
-              {' · '}微店付款遇到问题（如反复跳转），可<a href={SHOP_URL} style={{ color: 'var(--ac)', textDecoration: 'underline' }}>打开微店店铺首页</a>重试
+              {' · '}<a href={SHOP_URL} style={{ color: 'var(--ac)', textDecoration: 'underline' }}>微店店铺首页</a>
             </div>
           </div>
         </div>
