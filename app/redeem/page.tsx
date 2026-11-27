@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Turnstile from '@/components/Turnstile';
 import { PACKAGES } from '@/lib/packages';
+import { fetchAuth, saveAuthToken } from '@/lib/auth-client';
 
 type Me = {
   authenticated: boolean;
@@ -47,7 +48,7 @@ export default function RedeemPage() {
 
   const loadMe = useCallback(async () => {
     try {
-      const res = await fetch('/api/me', { cache: 'no-store' });
+      const res = await fetchAuth('/api/me', { cache: 'no-store' });
       setMe((await res.json()) as Me);
     } catch {
       setMe({ authenticated: false, user: null });
@@ -67,7 +68,7 @@ export default function RedeemPage() {
   // 登录后加载邀请状态
   useEffect(() => {
     if (!me?.authenticated) return;
-    fetch('/api/invite/status', { cache: 'no-store' })
+    fetchAuth('/api/invite/status', { cache: 'no-store' })
       .then(r => r.json())
       .then((d: { redeemedThisWeek?: boolean; totalInvited?: number }) => {
         setInviteStatus({ redeemedThisWeek: !!d.redeemedThisWeek, totalInvited: d.totalInvited ?? 0 });
@@ -91,24 +92,49 @@ export default function RedeemPage() {
           ? { username, password, turnstileToken }
           : { username, password, email, turnstileToken, ref: inviteRef }),
       });
-      const data = (await res.json()) as { error?: string; freeCreditGranted?: boolean };
+      const data = (await res.json()) as {
+        error?: string; freeCreditGranted?: boolean; token?: string;
+        user?: { id: number; username: string; credits: number; isPaid: boolean; freeUsed: number };
+      };
       if (!res.ok) {
         setMsg({ type: 'err', text: data.error ?? '操作失败' });
         return;
       }
+      // 存 session token 到 localStorage：之后 fetchAuth 会自动带 x-auth-token 头。
+      // 这是解决微信内置浏览器登录态丢失的关键（cookie 不可靠时改用头传递）。
+      if (data.token) saveAuthToken(data.token);
       setPassword('');
       setPasswordConfirm('');
-      if (mode === 'login') {
-        setMsg({ type: 'ok', text: '登录成功，正在进入…' });
-      } else if (data.freeCreditGranted === false) {
-        setMsg({ type: 'ok', text: '注册成功，正在进入…（免费体验次数已被领取过，如需提问请使用兑换码）' });
-      } else {
-        setMsg({ type: 'ok', text: '注册成功，正在进入…（赠送 1 次免费问答）' });
+
+      // 立即用登录接口返回的用户数据切换到已登录态，不依赖页面刷新——
+      // 微信内置浏览器的 reload + cookie 时序不稳定，曾导致"显示登录成功但仍是表单"。
+      if (data.user) {
+        setMe({
+          authenticated: true,
+          user: {
+            id: data.user.id,
+            username: data.user.username,
+            credits: data.user.credits,
+            rawCredits: data.user.credits,
+            hasTimePass: false,
+            expiresAt: null,
+            creditsExpiresAt: null,
+            isPaid: data.user.isPaid,
+            freeUsed: data.user.freeUsed,
+            email: null,
+          },
+        });
       }
-      // 登录/注册成功后刷新页面：让 HttpOnly cookie 重新载入，页面从头渲染成已登录态。
-      // 之前只调 loadMe() 在部分浏览器（尤其微信内置）会因 cookie 未及时生效而卡在登录表单。
-      await new Promise(resolve => setTimeout(resolve, 400));
-      window.location.reload();
+      if (mode === 'login') {
+        setMsg({ type: 'ok', text: '登录成功' });
+      } else if (data.freeCreditGranted === false) {
+        setMsg({ type: 'ok', text: '注册成功，已自动登录（免费体验次数已被领取过，如需提问请使用兑换码）' });
+      } else {
+        setMsg({ type: 'ok', text: '注册成功，已自动登录（赠送 1 次免费问答）' });
+      }
+      // 后台补全字段（时间包/邮箱等）：带 x-auth-token 头，微信里同样可靠。
+      // 失败也不影响——界面已切入登录态。
+      void loadMe();
       return;
     } catch {
       setMsg({ type: 'err', text: '网络错误，请稍后重试' });
@@ -121,7 +147,7 @@ export default function RedeemPage() {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch('/api/redeem', {
+      const res = await fetchAuth('/api/redeem', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }),
@@ -154,7 +180,8 @@ export default function RedeemPage() {
   const handleLogout = async () => {
     setBusy(true);
     try {
-      await fetch('/api/logout', { method: 'POST' });
+      await fetchAuth('/api/logout', { method: 'POST' });
+    saveAuthToken(null);
       setMsg(null);
       await loadMe();
     } finally {
@@ -169,7 +196,7 @@ export default function RedeemPage() {
     }
     setAcctMsg(null);
     try {
-      const res = await fetch('/api/account/password', {
+      const res = await fetchAuth('/api/account/password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword: curPwd, newPassword: newPwd }),
@@ -189,7 +216,7 @@ export default function RedeemPage() {
   const handleBindEmail = async () => {
     setAcctMsg(null);
     try {
-      const res = await fetch('/api/account/email', {
+      const res = await fetchAuth('/api/account/email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: bindEmail, password: bindPwd }),

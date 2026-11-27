@@ -120,6 +120,8 @@ export async function POST(request: Request): Promise<Response> {
       },
       freeCreditGranted: grantFree,
       inviteBonus: invite.inviteeBonus,
+      // 同 login：token 供前端存入 localStorage 走 x-auth-token 头（微信浏览器兼容）。
+      token,
       turnstileSkipped: turnstile.skipped,
     },
     { status: 201, headers: { 'Set-Cookie': sessionCookieHeader(token), 'Cache-Control': 'no-store' } },

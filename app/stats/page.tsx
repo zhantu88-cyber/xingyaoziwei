@@ -1,5 +1,7 @@
 'use client';
 
+import { fetchAuth } from '@/lib/auth-client';
+
 import { useEffect, useState } from 'react';
 
 type Stats = {
@@ -41,7 +43,7 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/stats', { cache: 'no-store' })
+    fetchAuth('/api/stats', { cache: 'no-store' })
       .then(async r => {
         const d = await r.json().catch(() => ({})) as Stats & { error?: string };
         if (!r.ok) throw new Error(d.error ?? '加载失败');

@@ -1,4 +1,5 @@
 'use client';
+import { fetchAuth } from '@/lib/auth-client';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import BirthForm, { type BirthFormState } from '@/components/BirthForm';
@@ -71,7 +72,7 @@ export default function HemingPage() {
 
   // 加载当前额度/权益（前端只读 /api/me，不用 localStorage）
   useEffect(() => {
-    fetch('/api/me', { cache: 'no-store' })
+    fetchAuth('/api/me', { cache: 'no-store' })
       .then(r => r.json())
       .then((d: { authenticated?: boolean; user?: { credits?: number; hasTimePass?: boolean } | null }) => {
         if (d.authenticated && d.user) {
@@ -122,7 +123,7 @@ export default function HemingPage() {
       setChartA(cA);
       setChartB(cB);
 
-      const res = await fetch('/api/heming', {
+      const res = await fetchAuth('/api/heming', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chartA: cA, chartB: cB, question: q ?? undefined }),

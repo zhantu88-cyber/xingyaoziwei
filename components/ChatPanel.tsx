@@ -1,4 +1,5 @@
 'use client';
+import { fetchAuth } from '@/lib/auth-client';
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { ZiweiChart } from '@/lib/ziwei/types';
@@ -51,7 +52,7 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
 
   // 加载当前额度/权益（前端只读 /api/me，不用 localStorage）
   useEffect(() => {
-    fetch('/api/me', { cache: 'no-store' })
+    fetchAuth('/api/me', { cache: 'no-store' })
       .then(r => r.json())
       .then((d: { authenticated?: boolean; user?: { credits?: number; hasTimePass?: boolean } | null }) => {
         if (d.authenticated && d.user) {
@@ -72,7 +73,7 @@ export default function ChatPanel({ chart, liunianYear }: ChatPanelProps) {
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetchAuth('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chart, messages: [...messages, userMsg], liunianYear }),

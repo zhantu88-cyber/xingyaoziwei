@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { fetchAuth } from '@/lib/auth-client';
 import { PACKAGES, perChatPrice } from '@/lib/packages';
 
 /**
@@ -27,7 +28,7 @@ export default function PayPage() {
   const [selectedPkg, setSelectedPkg] = useState('c10'); // 支付区默认选中的套餐
 
   useEffect(() => {
-    fetch('/api/me', { cache: 'no-store' })
+    fetchAuth('/api/me', { cache: 'no-store' })
       .then(r => r.json())
       .then((d: { authenticated?: boolean; user?: { username?: string; credits?: number; hasTimePass?: boolean } | null }) => {
         if (d.authenticated && d.user) {

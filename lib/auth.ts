@@ -211,9 +211,16 @@ export type UserRow = {
 
 const USER_COLUMNS = 'id, username, password_hash, salt, expires_at, credits, credits_expires_at, last_chat_at, free_used, email, created_at';
 
-/** 读取当前登录用户，未登录返回 null。 */
+/** 读取当前登录用户，未登录返回 null。
+ *  优先取 x-auth-token 请求头（前端登录后存入 localStorage 并随每个请求带上），
+ *  其次读 HttpOnly cookie。双轨制让微信内置浏览器等 cookie 不稳定的场景也能保持登录态。 */
 export async function getCurrentUser(request: Request): Promise<UserRow | null> {
-  const uid = await verifySessionToken(readCookie(request, SESSION_COOKIE));
+  const headerToken = request.headers.get('x-auth-token');
+  const uid = await verifySessionToken(
+    typeof headerToken === 'string' && headerToken
+      ? headerToken
+      : readCookie(request, SESSION_COOKIE),
+  );
   if (uid === null) return null;
   const db = await getDb();
   return db.prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`)

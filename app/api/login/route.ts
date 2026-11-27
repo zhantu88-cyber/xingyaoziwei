@@ -68,6 +68,9 @@ export async function POST(request: Request): Promise<Response> {
         credits: row.credits,
         freeUsed: row.free_used,
       },
+      // 同时返回 token，让前端可存入 localStorage 并随 x-auth-token 头携带，
+      // 解决微信内置浏览器等 cookie 不稳定的登录态丢失问题（双轨制，cookie 仍写）。
+      token,
       turnstileSkipped: turnstile.skipped,
     },
     { status: 200, headers: { 'Set-Cookie': sessionCookieHeader(token), 'Cache-Control': 'no-store' } },
