@@ -1,18 +1,29 @@
 import type { BirthFormState } from '@/components/BirthForm';
 import type { BirthInfo } from './types';
-import { branchFromSolarMinutes, resolveZiweiDayOffset, shiftGregorianDate } from './true-solar-time';
+import { calculateTrueSolarTime, resolveZiweiDayOffset, shiftGregorianDate } from './true-solar-time';
 
 function isValidLongitude(longitude: number): boolean {
   return longitude >= -180 && longitude <= 180;
 }
 
-/** 根据北京时间 + 经度计算真太阳时时辰支 (0-11) */
-export function calcTrueSolarBranch(clockHour: number, clockMinute: number, longitude: number): number {
-  const clockMins = clockHour * 60 + clockMinute;
-  const offset = (longitude - 120) * 4;
-  const solar = ((clockMins + offset) % 1440 + 1440) % 1440;
-  if (solar >= 1380 || solar < 60) return 0;
-  return Math.floor((solar - 60) / 120) + 1;
+/** 根据北京时间、经度与日期计算真太阳时时辰支 (0-11) */
+export function calcTrueSolarBranch(
+  clockHour: number,
+  clockMinute: number,
+  longitude: number,
+  year?: number,
+  month?: number,
+  day?: number,
+): number {
+  const solar = calculateTrueSolarTime({
+    year: year ?? 0,
+    month: month ?? 0,
+    day: day ?? 0,
+    clockHour,
+    clockMinute,
+    longitude,
+  });
+  return solar.branch;
 }
 
 /** BirthFormState → BirthInfo
@@ -28,13 +39,20 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
   let d = parseInt(form.day) || 0;
   let hour = 0;
 
-  // 晚子时换日按真太阳时判定，与时辰支同一口径（见 true-solar-time.ts 的 resolveZiweiDayOffset）。
-  // 只看钟表 23 点会和经度校正后的时辰错位：东经 100° 钟表 23:30 是真太阳时 22:10 亥时，不该换日。
+  // 以出生日期、经度和均时差计算真太阳时。时辰与换日使用同一个结果，
+  // 避免只做经度修正时在丑时边界附近产生一小时错位。
   if (!form.unknownTime) {
-    const solar = (parseInt(form.clockHour) || 0) * 60 + (parseInt(form.clockMinute) || 0) + (form.longitude - 120) * 4;
-    const normalizedMinutes = ((solar % 1440) + 1440) % 1440;
-    hour = branchFromSolarMinutes(normalizedMinutes);
-    const dayOffset = resolveZiweiDayOffset({ dayOffset: Math.floor(solar / 1440), normalizedMinutes, branch: hour });
+    const solar = calculateTrueSolarTime({
+      year: y,
+      month: m,
+      day: d,
+      clockHour: parseInt(form.clockHour) || 0,
+      clockMinute: parseInt(form.clockMinute) || 0,
+      // 表单默认经度为 120°；未选出生地时仍与表单预览使用相同的时辰口径。
+      longitude: form.longitude,
+    });
+    hour = solar.branch;
+    const dayOffset = resolveZiweiDayOffset(solar);
     if (dayOffset !== 0 && y > 0 && m > 0 && d > 0) {
       ({ year: y, month: m, day: d } = shiftGregorianDate({ year: y, month: m, day: d }, dayOffset));
     }

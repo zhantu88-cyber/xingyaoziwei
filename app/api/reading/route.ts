@@ -7,7 +7,10 @@ const DIMENSIONS = [
   'children', 'move', 'friends', 'home', 'spirit', 'parents',
 ] as const;
 const SHARD_COUNT = 6;
-const CACHE_CONTROL = 'public, max-age=86400';
+// Prevent intermediary transformations/compression on this JSON endpoint.
+// Content-Encoding: identity is not a registered content coding; Cloudflare
+// documents no-transform as the supported way to opt a response out.
+const CACHE_CONTROL = 'public, max-age=86400, no-transform';
 
 type Dimension = (typeof DIMENSIONS)[number];
 type R2ObjectLike = { body: ReadableStream<Uint8Array> | null };
@@ -69,7 +72,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!parsed) {
     return Response.json(
       { error: 'Invalid "k"; expected YYYY-MM-DD-H-male or YYYY-MM-DD-H-female.' },
-      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+      { status: 400, headers: { 'Cache-Control': 'no-store, no-transform' } },
     );
   }
 
@@ -81,7 +84,7 @@ export async function GET(request: Request): Promise<Response> {
     console.error(`Missing R2 binding: ${binding}`);
     return Response.json({ error: 'Reading storage is not configured.' }, {
       status: 500,
-      headers: { 'Cache-Control': 'no-store' },
+      headers: { 'Cache-Control': 'no-store, no-transform' },
     });
   }
 
@@ -90,7 +93,7 @@ export async function GET(request: Request): Promise<Response> {
     if (!object?.body) {
       return Response.json({ error: `Reading not found: ${key}` }, {
         status: 404,
-        headers: { 'Cache-Control': 'no-store' },
+        headers: { 'Cache-Control': 'no-store, no-transform' },
       });
     }
 
@@ -102,7 +105,7 @@ export async function GET(request: Request): Promise<Response> {
     console.error(`Failed to read ${key} from ${binding}:`, error);
     return Response.json({ error: 'Failed to read the stored interpretation.' }, {
       status: 502,
-      headers: { 'Cache-Control': 'no-store' },
+      headers: { 'Cache-Control': 'no-store, no-transform' },
     });
   }
 }

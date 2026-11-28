@@ -18,6 +18,26 @@ function normalizeGender(gender: unknown): 'male' | 'female' | null {
 }
 
 /**
+ * BirthInfo.hour 已由 formToBirthInfo 根据真太阳时转换为地支索引 0–11。
+ * 生成数据集 key 时必须原样使用这个索引，不能把它再当作钟表小时换算。
+ */
+function buildReadingKey(chart: ZiweiChart | null): string | null {
+  if (!chart) return null;
+
+  const { year, month, day, hour } = chart.birthInfo;
+  const gender = normalizeGender(chart.birthInfo.gender);
+  if (
+    !Number.isInteger(year) || year < 1
+    || !Number.isInteger(month) || month < 1 || month > 12
+    || !Number.isInteger(day) || day < 1 || day > 31
+    || !Number.isInteger(hour) || hour < 0 || hour > 11
+    || !gender
+  ) return null;
+
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${hour}-${gender}`;
+}
+
+/**
  * 命盘页 —— 开源版「排盘引擎 Demo」
  *
  * 这是一个最小可运行示例：用本仓库的排盘引擎 generateChart() 配合基础 UI
@@ -35,17 +55,7 @@ export default function ChartPage() {
   // 右栏切换：命盘解读（静态）/ AI 问答（付费，按额度）
   const [rightTab, setRightTab] = useState<'reading' | 'chat'>('reading');
 
-  const gender = normalizeGender(chart?.birthInfo.gender);
-  // BirthInfo.hour 来自 formToBirthInfo()，已是真太阳时校正后的时辰索引（0–11）。
-  // 此处不可再次按 0–23 点钟换算，否则会取到另一个时辰的数据文件。
-  const shichen = chart?.birthInfo.hour;
-  const validShichen = typeof shichen === 'number' && Number.isInteger(shichen) && shichen >= 0 && shichen <= 11
-    ? shichen
-    : null;
-  const readingKey = chart && gender
-    && validShichen !== null
-    ? `${chart.birthInfo.year}-${String(chart.birthInfo.month).padStart(2, '0')}-${String(chart.birthInfo.day).padStart(2, '0')}-${validShichen}-${gender}`
-    : null;
+  const readingKey = buildReadingKey(chart);
 
   // ── 未起盘：展示出生信息表单 ──
   if (!chart) {

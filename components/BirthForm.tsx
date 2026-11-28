@@ -75,8 +75,11 @@ export default function BirthForm({ onSubmit, loading, initialData, onFormSave, 
       parseInt(form.clockHour) || 0,
       parseInt(form.clockMinute) || 0,
       form.longitude,
+      parseInt(form.year) || undefined,
+      parseInt(form.month) || undefined,
+      parseInt(form.day) || undefined,
     );
-  }, [form.clockHour, form.clockMinute, form.longitude, form.unknownTime]);
+  }, [form.clockHour, form.clockMinute, form.longitude, form.unknownTime, form.year, form.month, form.day]);
 
   const offsetMin = Math.round((form.longitude - 120) * 4);
   const shichenInfo = SHICHEN[branch];
