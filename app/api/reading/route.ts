@@ -2,86 +2,107 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 
 export const dynamic = 'force-dynamic';
 
+const DIMENSIONS = [
+  'overview', 'personality', 'love', 'career', 'wealth', 'health', 'family',
+  'children', 'move', 'friends', 'home', 'spirit', 'parents',
+] as const;
 const SHARD_COUNT = 6;
-const BUCKET_BINDINGS = Array.from({ length: SHARD_COUNT }, (_, i) => `R2_BUCKET_${i + 1}`);
-const D1_BINDING_NAMES = ['DB', 'D1', 'DATABASE', 'READINGS_DB', 'SHARD_INDEX_DB'];
 const CACHE_CONTROL = 'public, max-age=86400';
 
-type D1Prepared = { bind(...values: unknown[]): { first<T = unknown>(): Promise<T | null> } };
-type D1DatabaseLike = { prepare(query: string): D1Prepared };
-type R2ObjectLike = { body: ReadableStream<Uint8Array> };
+type Dimension = (typeof DIMENSIONS)[number];
+type R2ObjectLike = { body: ReadableStream<Uint8Array> | null };
 type R2BucketLike = { get(key: string): Promise<R2ObjectLike | null> };
 type EnvLike = Record<string, unknown>;
+type StoredReading = { k?: unknown; y?: unknown; m?: unknown; d?: unknown; c?: unknown; [key: string]: unknown };
 
-function isD1(value: unknown): value is D1DatabaseLike {
-  return !!value && typeof (value as D1DatabaseLike).prepare === 'function';
+function parseKey(raw: string | null): { key: string; year: number } | null {
+  const key = raw?.trim() ?? '';
+  const match = key.match(/^(\d{4})-(\d{2})-(\d{2})-([0-9]|1[01])-(male|female)$/);
+  if (!match) return null;
+  return { key, year: Number(match[1]) };
 }
+
+function bucketBindingForYear(year: number): `R2_BUCKET_${number}` {
+  return `R2_BUCKET_${(year % SHARD_COUNT) + 1}`;
+}
+
 function isR2Bucket(value: unknown): value is R2BucketLike {
   return !!value && typeof (value as R2BucketLike).get === 'function';
 }
-function parseKey(raw: string | null): { key: string; year: number } | null {
-  if (!raw) return null;
-  const key = raw.trim();
-  if (!/^\d{4}-/.test(key)) return null;
-  if (/[\\/\x00-\x1f\x7f]/.test(key) || key.includes('..')) return null;
-  return { key, year: Number(key.slice(0, 4)) };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
-function normalizeBinding(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const binding = value.trim();
-  if (BUCKET_BINDINGS.includes(binding)) return binding;
-  const match = binding.match(/(?:R2_BUCKET_|xingyaoziwei-shard-)(\d+)$/i);
-  if (!match) return null;
-  const shard = Number(match[1]);
-  return shard >= 1 && shard <= SHARD_COUNT ? `R2_BUCKET_${shard}` : null;
-}
-function d1Candidates(env: EnvLike): D1DatabaseLike[] {
-  const databases: D1DatabaseLike[] = [];
-  const seen = new Set<unknown>();
-  const add = (value: unknown) => {
-    if (isD1(value) && !seen.has(value)) { seen.add(value); databases.push(value); }
+
+function normalizeReading(raw: unknown, requestedKey: string, year: number): Record<string, string | number | null> | null {
+  if (!isRecord(raw)) return null;
+  const stored = raw as StoredReading;
+  const content = isRecord(stored.c) ? stored.c : stored;
+  const result: Record<string, string | number | null> = {
+    k: typeof stored.k === 'string' ? stored.k : requestedKey,
+    y: typeof stored.y === 'number' ? stored.y : year,
+    m: typeof stored.m === 'number' ? stored.m : null,
+    d: typeof stored.d === 'number' ? stored.d : null,
   };
-  for (const name of D1_BINDING_NAMES) add(env[name]);
-  for (const value of Object.values(env)) add(value);
-  return databases;
-}
-async function bucketFromShardIndex(env: EnvLike, year: number): Promise<string | null> {
-  for (const db of d1Candidates(env)) {
-    try {
-      const row = await db.prepare('SELECT bucket_binding FROM shard_index WHERE year = ?')
-        .bind(year).first<{ bucket_binding?: string | null }>();
-      const binding = normalizeBinding(row?.bucket_binding);
-      if (binding) return binding;
-    } catch { /* not the shard index; try next */ }
+
+  for (const dimension of DIMENSIONS) {
+    const flat = stored[`text_${dimension}`];
+    const value = typeof flat === 'string' ? flat : content[dimension];
+    result[dimension] = typeof value === 'string' ? value : null;
   }
-  return null;
+  return result;
+}
+
+async function readR2Json(body: ReadableStream<Uint8Array>): Promise<unknown> {
+  const bytes = new Uint8Array(await new Response(body).arrayBuffer());
+  // Some historical objects use a .json.gz suffix but contain plain JSON. Only
+  // decompress files with the Gzip magic bytes 1F 8B; never guess by filename.
+  const isGzip = bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+  const text = isGzip
+    ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text()
+    : new TextDecoder().decode(bytes);
+  return JSON.parse(text);
 }
 
 export async function GET(request: Request): Promise<Response> {
   const parsed = parseKey(new URL(request.url).searchParams.get('k'));
   if (!parsed) {
-    return Response.json({ error: 'Missing or invalid "k" query parameter' },
-      { status: 400, headers: { 'Cache-Control': 'no-store' } });
+    return Response.json(
+      { error: 'Invalid "k"; expected YYYY-MM-DD-H-male or YYYY-MM-DD-H-female.' },
+      { status: 400, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
-  const { key, year } = parsed;
-  const { env } = await getCloudflareContext();
-  const bindings = env as unknown as EnvLike;
-  const preferred = await bucketFromShardIndex(bindings, year);
-  const candidates = [...new Set([...(preferred ? [preferred] : []), ...BUCKET_BINDINGS])];
-  const objectKey = `${key}.json.gz`;
 
-  for (const binding of candidates) {
-    const bucket = bindings[binding];
-    if (!isR2Bucket(bucket)) continue;
-    let object: R2ObjectLike | null;
-    try { object = await bucket.get(objectKey); } catch { continue; }
-    if (!object?.body) continue;
-    const gzip = new DecompressionStream('gzip') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>;
-    return new Response(object.body.pipeThrough(gzip), {
-      headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': CACHE_CONTROL },
+  const { key, year } = parsed;
+  const binding = bucketBindingForYear(year);
+  const { env } = await getCloudflareContext({ async: true });
+  const bucket = (env as unknown as EnvLike)[binding];
+  if (!isR2Bucket(bucket)) {
+    console.error(`Missing R2 binding: ${binding}`);
+    return Response.json({ error: 'Reading storage is not configured.' }, {
+      status: 500,
+      headers: { 'Cache-Control': 'no-store' },
     });
   }
 
-  return Response.json({ error: `Reading not found: ${key}` },
-    { status: 404, headers: { 'Cache-Control': 'no-store' } });
+  try {
+    const object = await bucket.get(`${key}.json.gz`);
+    if (!object?.body) {
+      return Response.json({ error: `Reading not found: ${key}` }, {
+        status: 404,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    }
+
+    const raw = await readR2Json(object.body);
+    const reading = normalizeReading(raw, key, year);
+    if (!reading) throw new Error('R2 object does not contain a JSON object.');
+    return Response.json(reading, { headers: { 'Cache-Control': CACHE_CONTROL } });
+  } catch (error) {
+    console.error(`Failed to read ${key} from ${binding}:`, error);
+    return Response.json({ error: 'Failed to read the stored interpretation.' }, {
+      status: 502,
+      headers: { 'Cache-Control': 'no-store' },
+    });
+  }
 }

@@ -12,6 +12,7 @@
     "workers:deploy": "npm run workers:build && npx @opennextjs/cloudflare deploy",
     "data:process": "node scripts/pipeline-process.js",
     "data:import": "node scripts/import-batches.js",
+    "data:verify-r2": "node scripts/verify-r2-reading.js",
     "db:init": "wrangler d1 execute xingyaoziwei-db --remote --file=./schema.sql",
     "db:import": "wrangler d1 execute xingyaoziwei-db --remote --file=./sample.sql",
     "start": "next start",

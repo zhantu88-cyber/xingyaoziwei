@@ -27,29 +27,26 @@ type Reading = Record<string, string>;
 
 // 宫位名 → 维度：点左边命盘的格子时，右侧自动跳到对应 Tab。
 // 命宫主「性格」，所以命宫映射到 personality；「总论」是进入时的默认首页，不绑定格子。
-const PALACE_TO_DIMENSION: Array<[RegExp, DimensionKey]> = [
-  [/命宫|命/, 'personality'],
-  [/夫妻|感情|婚/, 'love'],
-  [/官禄|事业|职场/, 'career'],
-  [/财帛|财富|财/, 'wealth'],
-  [/疾厄|健康/, 'health'],
-  [/兄弟|家庭|手足/, 'family'],
-  [/子女|儿女/, 'children'],
-  [/迁移|外出/, 'move'],
-  [/仆役|交友|人际|朋友/, 'friends'],
-  [/田宅|房产/, 'home'],
-  [/福德|精神/, 'spirit'],
-  [/父母|长辈/, 'parents'],
-];
+export const PALACE_TO_DIMENSION: Record<string, DimensionKey> = {
+  '命': 'personality', '命宫': 'personality',
+  '兄弟': 'family', '兄弟宫': 'family',
+  '夫妻': 'love', '夫妻宫': 'love',
+  '子女': 'children', '子女宫': 'children',
+  '财帛': 'wealth', '财帛宫': 'wealth',
+  '疾厄': 'health', '疾厄宫': 'health',
+  '迁移': 'move', '迁移宫': 'move',
+  '交友': 'friends', '交友宫': 'friends', '仆役': 'friends', '仆役宫': 'friends',
+  '官禄': 'career', '官禄宫': 'career', '事业': 'career', '事业宫': 'career',
+  '田宅': 'home', '田宅宫': 'home',
+  '福德': 'spirit', '福德宫': 'spirit',
+  '父母': 'parents', '父母宫': 'parents',
+};
 
 function palaceToDimension(name: unknown): DimensionKey | null {
   if (typeof name !== 'string') return null;
   const value = name.trim();
   if (!value) return null;
-  for (const [pattern, key] of PALACE_TO_DIMENSION) {
-    if (pattern.test(value)) return key;
-  }
-  return null;
+  return PALACE_TO_DIMENSION[value] ?? null;
 }
 
 export interface InsightPanelProps {
