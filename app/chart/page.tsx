@@ -6,36 +6,8 @@ import InsightPanel from '@/components/InsightPanel';
 import ChatPanel from '@/components/ChatPanel';
 import type { TimeView } from '@/components/TimeNav';
 import { generateChart } from '@/lib/ziwei/algorithm';
+import { buildReadingKey } from '@/lib/ziwei/reading-key';
 import type { BirthInfo, ZiweiChart, Palace } from '@/lib/ziwei/types';
-
-// 性别归一化：'男'/男性/1/male/m → male，'女'/女性/0/female/f → female。
-// 兼容中英文大小写、数字与前后空格；无法识别时返回 null，避免拼出错误 key。
-function normalizeGender(gender: unknown): 'male' | 'female' | null {
-  const value = String(gender ?? '').trim().toLowerCase();
-  if (['male', 'm', 'man', '男', '男性', '1', 'true'].includes(value)) return 'male';
-  if (['female', 'f', 'woman', '女', '女性', '0', 'false'].includes(value)) return 'female';
-  return null;
-}
-
-/**
- * BirthInfo.hour 已由 formToBirthInfo 根据真太阳时转换为地支索引 0–11。
- * 生成数据集 key 时必须原样使用这个索引，不能把它再当作钟表小时换算。
- */
-function buildReadingKey(chart: ZiweiChart | null): string | null {
-  if (!chart) return null;
-
-  const { year, month, day, hour } = chart.birthInfo;
-  const gender = normalizeGender(chart.birthInfo.gender);
-  if (
-    !Number.isInteger(year) || year < 1
-    || !Number.isInteger(month) || month < 1 || month > 12
-    || !Number.isInteger(day) || day < 1 || day > 31
-    || !Number.isInteger(hour) || hour < 0 || hour > 11
-    || !gender
-  ) return null;
-
-  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}-${hour}-${gender}`;
-}
 
 /**
  * 命盘页 —— 开源版「排盘引擎 Demo」
@@ -55,7 +27,7 @@ export default function ChartPage() {
   // 右栏切换：命盘解读（静态）/ AI 问答（付费，按额度）
   const [rightTab, setRightTab] = useState<'reading' | 'chat'>('reading');
 
-  const readingKey = buildReadingKey(chart);
+  const readingKey = buildReadingKey(chart?.birthInfo);
 
   // ── 未起盘：展示出生信息表单 ──
   if (!chart) {

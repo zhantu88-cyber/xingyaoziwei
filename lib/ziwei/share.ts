@@ -1,5 +1,6 @@
 import type { BirthFormState } from '@/components/BirthForm';
 import type { BirthInfo } from './types';
+import { normalizeGenderInput } from './gender';
 import { calculateTrueSolarTime, resolveZiweiDayOffset, shiftGregorianDate } from './true-solar-time';
 
 function isValidLongitude(longitude: number): boolean {
@@ -34,6 +35,8 @@ export function calcTrueSolarBranch(
  * 这与「时辰支同为子(0)」并不冲突——子时分早晚两段，需要在日期上区分。
  */
 export function formToBirthInfo(form: BirthFormState): BirthInfo {
+  const gender = normalizeGenderInput(form.gender);
+  if (!gender) throw new RangeError(`gender must be male/female; received ${String(form.gender)}`);
   let y = parseInt(form.year) || 0;
   let m = parseInt(form.month) || 0;
   let d = parseInt(form.day) || 0;
@@ -61,7 +64,7 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
   return {
     year: y, month: m, day: d,
     hour,
-    gender: form.gender,
+    gender,
     name: form.name || undefined,
     province: form.province || undefined,
     city: form.city || undefined,
@@ -71,6 +74,8 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
 
 /** BirthFormState → URLSearchParams（用于分享链接） */
 export function formToSearchParams(form: BirthFormState): URLSearchParams {
+  const gender = normalizeGenderInput(form.gender);
+  if (!gender) throw new RangeError(`gender must be male/female; received ${String(form.gender)}`);
   const p = new URLSearchParams();
   if (form.name) p.set('n', form.name);
   p.set('y', form.year);
@@ -85,7 +90,7 @@ export function formToSearchParams(form: BirthFormState): URLSearchParams {
   if (form.province) p.set('p', form.province);
   if (form.city) p.set('c', form.city);
   if (form.longitude !== 120 && isValidLongitude(form.longitude)) p.set('lo', String(form.longitude));
-  p.set('g', form.gender === 'male' ? 'm' : 'f');
+  p.set('g', gender === 'male' ? 'm' : 'f');
   return p;
 }
 
@@ -97,6 +102,9 @@ export function searchParamsToForm(params: URLSearchParams): Partial<BirthFormSt
   if (!year || !month || !day) return null;
   const rawLongitude = params.get('lo')?.trim();
   const longitude = rawLongitude ? Number(rawLongitude) : 120;
+  const rawGender = params.get('g');
+  const gender = rawGender === null ? 'male' : normalizeGenderInput(rawGender);
+  if (!gender) return null;
   return {
     name: params.get('n') || '',
     year,
@@ -108,6 +116,6 @@ export function searchParamsToForm(params: URLSearchParams): Partial<BirthFormSt
     province: params.get('p') || '',
     city: params.get('c') || '',
     longitude: isValidLongitude(longitude) ? longitude : 120,
-    gender: params.get('g') === 'f' ? 'female' : 'male',
+    gender,
   };
 }
